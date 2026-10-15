@@ -44,6 +44,15 @@ struct MacCollaborationWorkspace: CollaborationWorkspaceEditing {
         return try JSONDecoder().decode(CollaborationPendingWrite.self, from: data)
     }
 
+    func prepareHumanFile(path: String, workspace: URL) throws {
+        let url = try resolve(path, workspace: workspace)
+        guard try documents.readDocumentDetails(from: url, encoding: nil) == nil else { return }
+        switch try documents.writeDocumentText("", to: url, expectedContent: nil, encoding: .utf8, expectedIdentity: nil) {
+        case .saved: break
+        case .conflict: throw AgentEditRestoreError.changed
+        }
+    }
+
     func apply(_ intent: CollaborationPendingWrite, workspace: URL) throws {
         guard try pending(workspace: workspace) == nil else { throw CollaborationFailure.invalidState }
         let receipt = intent.receipt

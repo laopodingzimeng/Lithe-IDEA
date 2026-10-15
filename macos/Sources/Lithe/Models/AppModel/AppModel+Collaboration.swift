@@ -15,6 +15,7 @@ extension AppModel {
 
     func openCollaborationTarget(_ relativePath: String) {
         guard let root = workspaceURL, CollaborationWorkflow.isRelativePath(relativePath) else { return }
+        guard prepareHumanCollaborationTarget(relativePath, root: root) else { return }
         // Absent planned files have a draft preview until the guarded write
         // creates them. Avoid opening an unavailable document as an empty file.
         guard (try? services.collaborationWorkspace.snapshot(paths: [relativePath], workspace: root).first?.text) != nil else { return }
@@ -49,6 +50,17 @@ extension AppModel {
     func handoffCollaborationStep() {
         collaborationFeature.perform("handoff")
         if collaborationFeature.plan?.phase == .checking { executeCollaborationStep() }
+    }
+
+    func openCollaborationCore() {
+        guard let root = workspaceURL, let plan = collaborationFeature.plan,
+              plan.phase != .draft, plan.phase != .complete, !collaborationFeature.hasPendingWrite,
+              let target = plan.steps.first(where: { $0.owner == .human })?.targets.first else { return }
+        collaborationFeature.takeOver()
+        do {
+            if target.kind == "file" { try services.collaborationWorkspace.prepareHumanFile(path: target.path, workspace: root) }
+            openCollaborationTarget(target.path)
+        } catch { collaborationFeature.reportFailure(error) }
     }
 
     func executeCollaborationStep() {
@@ -95,6 +107,14 @@ extension AppModel {
         return documentFeature.editorDocuments.filter { urls.contains($0.url.standardizedFileURL.resolvingSymlinksInPath()) }
     }
 
+    private func prepareHumanCollaborationTarget(_ path: String, root: URL) -> Bool {
+        guard let plan = collaborationFeature.plan, plan.phase == .humanWorking, !plan.paused,
+              plan.step?.owner == .human,
+              plan.step?.targets.contains(where: { $0.kind == "file" && $0.path == path }) == true else { return true }
+        do { try services.collaborationWorkspace.prepareHumanFile(path: path, workspace: root); return true }
+        catch { collaborationFeature.reportFailure(error); return false }
+    }
+
     func followCollaborationTarget(_ path: String) async {
         guard collaborationFeature.presentation.followsActivity, let root = workspaceURL,
               CollaborationWorkflow.isRelativePath(path) else { return }
@@ -103,6 +123,7 @@ extension AppModel {
             return
         }
         let navigation = collaborationFeature.presentation.navigation
+        guard prepareHumanCollaborationTarget(path, root: root) else { return }
         guard (try? services.collaborationWorkspace.snapshot(paths: [path], workspace: root).first?.text) != nil,
               let document = await documentFeature.previewDocument(at: root.appendingPathComponent(path)),
               !Task.isCancelled, workspaceURL == root, collaborationFeature.presentation.followsActivity,

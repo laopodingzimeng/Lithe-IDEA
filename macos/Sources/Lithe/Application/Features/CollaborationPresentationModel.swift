@@ -5,12 +5,13 @@ import Foundation
 /// draft publications so streaming does not invalidate the whole workbench.
 @MainActor
 final class CollaborationTaskPreview: ObservableObject, Identifiable {
-    enum State: String { case waiting = "等待", generating = "生成草稿", validating = "校验中", written = "已写入", cancelled = "已取消", failed = "未写入", reviewed = "分析完成" }
+    enum State: String { case waiting = "等待", generating = "生成草稿", validating = "校验中", written = "已写入", cancelled = "已取消", failed = "操作失败", recovery = "需核对写入", reviewed = "分析完成" }
     let id: String
     let paths: [String]
     @Published var state: State = .waiting
     @Published var text = ""
     @Published var minimized = false
+    @Published var openPath: String?
     init(id: String, paths: [String]) { self.id = id; self.paths = paths }
 }
 
@@ -23,9 +24,11 @@ final class CollaborationPresentationModel: ObservableObject {
     @Published private(set) var navigation: Navigation?
     @Published private(set) var editingRevision = 0
     @Published var dockCollapsed = false
+    private var hasObservedEdit = false
     var selected: CollaborationTaskPreview? { tasks.first { $0.id == selectedID } }
 
     func begin(groups: [[CollaborationTarget]]) {
+        hasObservedEdit = false
         tasks = groups.enumerated().map { index, targets in
             CollaborationTaskPreview(id: UUID().uuidString + ":" + String(index), paths: Array(Set(targets.map(\.path))).sorted())
         }
@@ -35,9 +38,15 @@ final class CollaborationPresentationModel: ObservableObject {
     func select(_ id: String) {
         guard tasks.contains(where: { $0.id == id }) else { return }
         selectedID = id; followsActivity = false
+        hasObservedEdit = false
     }
-    func follow() { followsActivity = true }
-    func userDidEdit() { followsActivity = false; editingRevision += 1 }
+    func follow() { followsActivity = true; hasObservedEdit = false }
+    func userDidEdit() {
+        // Only the first keystroke changes presentation. Subsequent edits must
+        // not invalidate the entire workspace on a high-frequency path.
+        guard !hasObservedEdit else { return }
+        hasObservedEdit = true; followsActivity = false; editingRevision += 1
+    }
     func requestOpen(_ path: String) {
         guard followsActivity else { return }
         navigation = Navigation(path: path)
@@ -51,6 +60,7 @@ final class CollaborationPresentationModel: ObservableObject {
     }
     func reset() {
         tasks = []; selectedID = nil; navigation = nil; followsActivity = true; dockCollapsed = false
+        hasObservedEdit = false
     }
 }
 

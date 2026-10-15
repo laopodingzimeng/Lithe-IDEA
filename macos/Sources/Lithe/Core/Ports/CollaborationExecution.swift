@@ -123,12 +123,16 @@ protocol CollaborationWorkspaceEditing: Sendable {
     func loadSession(workspace: URL) throws -> Data?
     func saveSession(_ data: Data?, workspace: URL) throws
     func snapshot(paths: [String], workspace: URL) throws -> [CollaborationFile]
+    /// Explicitly starting a human-owned whole-file target may create an empty
+    /// file; it never generates business code or overwrites existing content.
+    func prepareHumanFile(path: String, workspace: URL) throws
     func pending(workspace: URL) throws -> CollaborationPendingWrite?
     func apply(_ intent: CollaborationPendingWrite, workspace: URL) throws
     func finish(workspace: URL) throws
     func rollback(workspace: URL) throws
 }
 extension CollaborationWorkspaceEditing {
+    func prepareHumanFile(path: String, workspace: URL) throws { throw CollaborationFailure.unavailable }
     func loadSession(workspace: URL) throws -> Data? { nil }
     func saveSession(_ data: Data?, workspace: URL) throws { }
 }
