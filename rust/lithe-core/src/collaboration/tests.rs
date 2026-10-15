@@ -412,3 +412,40 @@ fn oversized_sources_are_rejected_before_java_parsing() {
         "invalid_request"
     );
 }
+
+#[test]
+fn native_workflow_packages_preserve_handoff_contract() {
+    // The native data packages must survive the same confirmed handoffs as the
+    // product, including unresolved questions and explicit human acceptance.
+    for source in [
+        include_str!("../../../../shared/fixtures/collaboration/spring-order.workflow.json"),
+        include_str!("../../../../shared/fixtures/collaboration/maintenance-review.workflow.json"),
+    ] {
+        let package: Value = serde_json::from_str(source).unwrap();
+        let mut current = json!({
+            "id":"native-fixture", "version":1, "requirement":package["requirement"],
+            "steps":package["steps"], "currentStep":0, "phase":"draft", "paused":false
+        });
+        current = advance(current, "confirm");
+        for step in package["steps"].as_array().unwrap() {
+            let questions = step["questions"].as_array().unwrap();
+            if !questions.is_empty() {
+                let answers: Vec<&str> = questions.iter().map(|_| "Human-confirmed rule").collect();
+                let resolved = transition(
+                    current,
+                    json!({"kind":"resolveQuestions", "answers":answers}),
+                );
+                assert_eq!(resolved["ok"], true, "{resolved}");
+                current = resolved["data"].clone();
+            }
+            current = advance(current, "start");
+            if step["owner"] == "human" {
+                current = advance(current, "handoff");
+            }
+            current = advance(current, "workFinished");
+            assert_eq!(current["phase"], "review");
+            current = advance(current, "accept");
+        }
+        assert_eq!(current["phase"], "complete");
+    }
+}

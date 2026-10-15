@@ -663,7 +663,11 @@ final class MacServiceContainer {
             workbenchBackgroundPlatform: MacWorkbenchBackgroundPlatform(store: store),
             directoryWatcherFactory: MacDirectoryWatcherFactory(),
             platformUI: platformUI,
-            shortcutDetectorFactory: MacShortcutDetectorFactory()
+            shortcutDetectorFactory: MacShortcutDetectorFactory(),
+            collaborationPlans: RustCollaborationPlanOperations(core: rustCore),
+            collaborationGenerator: CollaborationGenerationService(service: CommitMessageGenerationService(
+                transport: MacURLSessionTransport(), credentialResolver: credentialResolver)),
+            collaborationWorkspace: MacCollaborationWorkspace(files: fileStorage, documents: fileOperations)
         )
         services.ideCapabilityRegistry = ideCapabilityRegistry
         services.ideHostTransport = MacIdeHostTransport(core: rustCore, storage: fileStorage)

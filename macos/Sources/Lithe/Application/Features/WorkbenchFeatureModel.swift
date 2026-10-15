@@ -7,7 +7,7 @@ import Foundation
 final class WorkbenchFeatureModel: ObservableObject {
     enum ToolWindow: String, CaseIterable, Codable, Hashable, Sendable {
         case project, changes, pullRequests, search, database
-        case gitLog, terminal, agent, databaseServices, references, problems, maven, mavenOutput, spring, run, tests, debug
+        case collaboration, gitLog, terminal, agent, databaseServices, references, problems, maven, mavenOutput, spring, run, tests, debug
 
         var sidebar: SidebarDestination? { SidebarDestination(rawValue: rawValue) }
         var rendererID: String? {
@@ -72,7 +72,7 @@ final class WorkbenchFeatureModel: ObservableObject {
     /// visible while they are open.
     static func isRightDocked(_ toolWindow: ToolWindow) -> Bool {
         switch toolWindow {
-        case .maven, .agent, .database: true
+        case .maven, .agent, .database, .collaboration: true
         default: false
         }
     }

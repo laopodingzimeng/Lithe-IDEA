@@ -127,6 +127,11 @@ try {
     assert.notEqual(refused.status, 0);
     assert.match(diagnostics(refused), /codex-retry-relay.*lithe-codex-retry.*cannot be reused/);
   });
+  await test("collaboration recovery records are never copied", { timeout: 15000 }, () => {
+    const refused = reuse(["--resource", "collaboration-runtime-state"]);
+    assert.notEqual(refused.status, 0);
+    assert.match(diagnostics(refused), /collaboration-runtime-state.*pending.json.*cannot be reused/);
+  });
   await test("Agent history preferences and exports are excluded from worktree copying", { timeout: 15000 }, () => {
     const refused = reuse(["--resource", "agent-history-metadata"]);
     assert.notEqual(refused.status, 0);
