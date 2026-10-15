@@ -1,0 +1,115 @@
+{
+  "request": {
+    "steps": [
+      {
+        "id": "dto",
+        "title": "dto",
+        "owner": "ai",
+        "targets": [
+          {
+            "kind": "file",
+            "path": "src/OrderDTO.java"
+          }
+        ],
+        "acceptance": [
+          "人工检查结果"
+        ],
+        "questions": [],
+        "decisions": []
+      },
+      {
+        "id": "config",
+        "title": "config",
+        "owner": "ai",
+        "targets": [
+          {
+            "kind": "file",
+            "path": "config.yml"
+          }
+        ],
+        "acceptance": [
+          "人工检查结果"
+        ],
+        "questions": [],
+        "decisions": []
+      },
+      {
+        "id": "mapper",
+        "title": "mapper",
+        "owner": "ai",
+        "targets": [
+          {
+            "kind": "file",
+            "path": "src/OrderMapper.java"
+          }
+        ],
+        "acceptance": [
+          "人工检查结果"
+        ],
+        "questions": [],
+        "decisions": []
+      },
+      {
+        "id": "logic",
+        "title": "logic",
+        "owner": "human",
+        "targets": [
+          {
+            "kind": "file",
+            "path": "src/OrderService.java"
+          }
+        ],
+        "acceptance": [
+          "人工检查结果"
+        ],
+        "questions": [],
+        "decisions": []
+      },
+      {
+        "id": "tests",
+        "title": "tests",
+        "owner": "ai",
+        "targets": [
+          {
+            "kind": "file",
+            "path": "test/OrderTest.java"
+          }
+        ],
+        "acceptance": [
+          "人工检查结果"
+        ],
+        "questions": [],
+        "decisions": []
+      }
+    ],
+    "dependsOn": {
+      "dto": [],
+      "config": [],
+      "mapper": [
+        "dto"
+      ],
+      "logic": [
+        "mapper",
+        "config"
+      ],
+      "tests": [
+        "logic"
+      ]
+    }
+  },
+  "groups": {
+    "wave-1": [
+      "dto",
+      "config"
+    ],
+    "wave-2": [
+      "mapper"
+    ],
+    "wave-3": [
+      "logic"
+    ],
+    "wave-4": [
+      "tests"
+    ]
+  }
+}

@@ -58,14 +58,14 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** 原生进程、受控工具、逐次收据、隔离 Java 验证已编码；CI 38726337272 编译中，新增验证适配器需下一轮编译；不标记验收完成。等待期间继续 P2 独立展示层。
+- **备注：** 061e29e2 原生 CI 38731121279 编译和协作测试通过；逐次撤销、接管、隔离验证已有目标工具链证据，运行包与桌面完整流程待 P6/P8。
 
 ---
 
 ### [P2] 双模型异步演示与回放
 
 - **内容：** 独立演示会话；事实记录；版本快照；章节；播放游标；失败降级
-- **进度：** doing
+- **进度：** review
 - **结束验收标准：** 演示暂停和故障不阻塞开发；历史版本和讲解一致
 - **交付标准：** 异步服务、持久化、状态测试
 - **会用到的 MCP：** none
@@ -73,14 +73,14 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** 实现不可变收据引用、事实章节、独立讲解队列与播放游标。
+- **备注：** 061e29e2 原生 CI 38731121279 通过独立讲解、历史版本、角色设置测试；真实 SDK 卡住演示不阻塞开发测试通过，完整桌面验收待 P8。
 
 ---
 
 ### [P3] 开发维护计划与并行任务
 
 - **内容：** 需求探索；人机任务分工；依赖图；并发预算；文件竞争；人工接管
-- **进度：** todo
+- **进度：** doing
 - **结束验收标准：** 开发维护均有闭环；依赖冲突与取消无迟到写入
 - **交付标准：** Core 契约、任务调度、fixtures、测试
 - **会用到的 MCP：** none
@@ -88,7 +88,7 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** 用户已授权全部功能，按已确认方案执行
+- **备注：** Core 依赖图与确定性任务组、Pi 只读探索、有限并发和串行提交已编码；889 项 Rust 测试通过。原生任务组回归待 CI。
 
 ---
 

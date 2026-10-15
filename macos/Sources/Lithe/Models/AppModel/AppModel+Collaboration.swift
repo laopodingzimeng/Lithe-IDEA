@@ -39,8 +39,7 @@ extension AppModel {
             guard path.hasPrefix(prefix) else { return nil }
             return String(path.dropFirst(prefix.count))
         } : []
-        collaborationFeature.generatePlan(context: context,
-            settings: collaborationFeature.modelSettings.settings(for: .planning, in: settings.commitMessageAI), projectPaths: paths)
+        collaborationFeature.generatePlanPi(context: context, settings: settings.commitMessageAI, projectPaths: paths)
     }
 
     func startCollaborationStep() {

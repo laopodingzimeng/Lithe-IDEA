@@ -105,3 +105,12 @@ workspace, plan version, operation and document revision before applying results
 No runtime storage is introduced by this Core contract. Future native storage
 must be workspace-scoped in platform Application Support/cache locations and must
 not modify installed bundles or share mutable state between Git worktrees.
+
+## `collaboration.schedule`
+
+Input `{steps, dependsOn}` contains original Core steps and a complete map of
+task IDs to direct prerequisites. The command validates all original ownership
+rules, unique prerequisite IDs, graph completeness and acyclicity. It returns
+`{steps, groups}`: deterministic serial wave steps and a wave-ID to original-task-ID
+mapping. It performs no I/O and does not mutate an existing plan. See
+[workflow v2](collaboration-workflows.md) for wave barriers and host concurrency.

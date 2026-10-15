@@ -449,3 +449,55 @@ fn native_workflow_packages_preserve_handoff_contract() {
         assert_eq!(current["phase"], "complete");
     }
 }
+
+#[test]
+fn schedule_preserves_dag_dependencies_human_handoff_and_file_exclusion() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../../shared/fixtures/collaboration/schedule-v2.json"
+    ))
+    .unwrap();
+    let result = run("collaboration.schedule", fixture["request"].clone());
+    assert_eq!(result["ok"], true, "{result}");
+    assert_eq!(result["data"]["groups"], fixture["groups"]);
+    let steps = result["data"]["steps"].as_array().unwrap();
+    assert_eq!(steps.len(), 4);
+    assert_eq!(steps[0]["targets"].as_array().unwrap().len(), 2);
+    assert_eq!(steps[2]["owner"], "human");
+    // The compiled scopes still pass the ordinary Core ownership validator.
+    let mut candidate = plan();
+    candidate["steps"] = result["data"]["steps"].clone();
+    assert_eq!(transition(candidate, json!({"kind":"confirm"}))["ok"], true);
+}
+
+#[test]
+fn schedule_rejects_cycles_unknown_dependencies_and_missing_declarations() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../../shared/fixtures/collaboration/schedule-v2.json"
+    ))
+    .unwrap();
+    for dependencies in [
+        json!({"dto":["mapper"], "config":[], "mapper":["dto"], "logic":["mapper"], "tests":["logic"]}),
+        json!({"dto":["absent"], "config":[], "mapper":["dto"], "logic":["mapper"], "tests":["logic"]}),
+        json!({"config":[], "mapper":["dto"], "logic":["mapper"], "tests":["logic"]}),
+        json!({"dto":["dto"], "config":[], "mapper":["dto"], "logic":["mapper"], "tests":["logic"]}),
+    ] {
+        let mut request = fixture["request"].clone();
+        request["dependsOn"] = dependencies;
+        assert_eq!(run("collaboration.schedule", request)["ok"], false);
+    }
+}
+
+#[test]
+fn schedule_serializes_same_file_even_for_distinct_methods_and_rejects_ownership_overlap() {
+    let mut request = json!({"steps": plan()["steps"], "dependsOn":{"mapping":[], "logic":[]}});
+    request["steps"][1]["owner"] = json!("ai");
+    let result = run("collaboration.schedule", request.clone());
+    assert_eq!(result["ok"], true, "{result}");
+    assert_eq!(result["data"]["steps"].as_array().unwrap().len(), 2);
+    request["steps"][1]["owner"] = json!("human");
+    request["steps"][1]["targets"] = request["steps"][0]["targets"].clone();
+    assert_eq!(
+        run("collaboration.schedule", request)["error"]["code"],
+        "permission_denied"
+    );
+}

@@ -38,6 +38,8 @@ pub enum CoreCommand {
     CollaborationPrepare,
     /// Prepares a guarded inverse of a trusted receipt (`collaboration.reverse`).
     CollaborationReverse,
+    /// Compiles explicit dependencies into conflict-free waves (`collaboration.schedule`).
+    CollaborationSchedule,
     /// Controls the native IDE capability broker (`ideHost.control`).
     IdeHostControl,
     /// Reports the Core and protocol versions (`core.ping`).
@@ -367,6 +369,7 @@ impl CoreCommand {
             "collaboration.transition" => Some(Self::CollaborationTransition),
             "collaboration.prepare" => Some(Self::CollaborationPrepare),
             "collaboration.reverse" => Some(Self::CollaborationReverse),
+            "collaboration.schedule" => Some(Self::CollaborationSchedule),
             "agent.status" => Some(Self::AgentStatus),
             "agent.install" => Some(Self::AgentInstall),
             "agent.uninstall" => Some(Self::AgentUninstall),

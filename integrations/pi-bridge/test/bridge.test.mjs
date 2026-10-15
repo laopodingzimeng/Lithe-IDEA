@@ -28,6 +28,25 @@ test('real Pi SDK completes a brokered write and continues using its actual host
   assert.ok(box.events.findIndex(value => value.kind === 'settled') < box.events.indexOf(finish));
 });
 
+test('planning explores through read-only tools and final JSON excludes exploration commentary', async t => {
+  const draft = JSON.stringify({ schemaVersion: 2, dependsOn: { mapping: [] } });
+  const provider = await providerFixture(t, (entry, index) => {
+    if (index === 1) toolReply(entry, 'workspace_list', {}, '先读取项目目录。');
+    else textReply(entry, draft);
+  });
+  const { controller, box, prompt } = await controllerFixture(t, configuration(provider.url, 'planning'));
+  await prompt();
+  const call = await box.wait(value => value.type === 'tool_request');
+  await controller.accept({ type: 'tool_result', requestId: 'catalog', runId: call.runId,
+    toolCallId: call.toolCallId, ok: true, result: { paths: ['Mapper.java'], nextCursor: null } });
+  const finish = await box.wait(value => value.type === 'run_finished');
+  assert.equal(finish.outcome, 'completed');
+  assert.equal(finish.text, draft);
+  assert.ok(box.events.some(value => value.kind === 'text_delta' && value.text.includes('项目目录')));
+  assert.deepEqual(provider.requests[0].body.tools.map(value => value.function.name).sort(),
+    ['workspace_list', 'workspace_read', 'workspace_search']);
+});
+
 test('Pi read-only presentation has no live tools and uses its own credentials', async t => {
   const provider = await providerFixture(t, entry => textReply(entry, 'Snapshot r7 introduced the mapper.'));
   const { box, prompt } = await controllerFixture(t, configuration(provider.url, 'presentation', 'presentation-key'));

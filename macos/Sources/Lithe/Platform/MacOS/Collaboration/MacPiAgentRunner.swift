@@ -170,7 +170,12 @@ struct MacPiAgentRunner: PiAgentRunning {
                 case "run_finished":
                     guard value["runId"] as? String == request.runID else { throw PiAgentFailure.protocolFailure }
                     switch value["outcome"] as? String {
-                    case "completed": completed = true
+                    case "completed":
+                        if let finalText = value["text"] as? String {
+                            guard finalText.utf8.count <= 4 * 1024 * 1024 else { throw PiAgentFailure.outputLimit }
+                            text = finalText
+                        }
+                        completed = true
                     case "cancelled": throw CancellationError()
                     case "timeout": throw PiAgentFailure.timedOut
                     default: throw PiAgentFailure.modelFailed

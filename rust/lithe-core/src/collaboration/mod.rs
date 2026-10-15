@@ -6,6 +6,7 @@
 
 mod edits;
 mod plan;
+mod schedule;
 #[cfg(test)]
 mod tests;
 
@@ -26,6 +27,11 @@ pub(crate) fn prepare(value: Value) -> Result<Value, CoreError> {
 /// Reverses a recorded change only while its owned content is still unchanged.
 pub(crate) fn reverse(value: Value) -> Result<Value, CoreError> {
     encode(edits::reverse(decode(value)?)?)
+}
+
+/// Validates dependencies and produces deterministic non-conflicting task waves.
+pub(crate) fn schedule(value: Value) -> Result<Value, CoreError> {
+    encode(schedule::compile(decode(value)?)?)
 }
 
 fn decode<T: DeserializeOwned>(value: Value) -> Result<T, CoreError> {

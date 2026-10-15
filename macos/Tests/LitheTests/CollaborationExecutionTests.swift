@@ -206,6 +206,60 @@ struct CollaborationExecutionTests {
         #expect(try String(contentsOf: workspace.appendingPathComponent("Order.java"), encoding: .utf8).contains("return \"first\";"))
     }
 
+    @MainActor @Test(.timeLimit(.minutes(1)))
+    func parallelPiTasksKeepSeparateGrantsAndSerializeJournalCommits() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let workspace = root.appendingPathComponent("project")
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        let storage = CollaborationDiskStorage(root: root.appendingPathComponent("state"))
+        let adapter = MacCollaborationWorkspace(files: storage, documents: MacWorkspaceFileOperations())
+        let runner = ParallelToolPi()
+        let feature = CollaborationFeatureModel(operations: RustCollaborationPlanOperations(core: RustCoreBridge()),
+            store: CollaborationExecutionStore(), files: storage, editing: adapter, pi: runner)
+        feature.bind(workspace: workspace)
+        let steps = (0..<2).map { index in
+            CollaborationStep(id: "task-\(index)", title: "Map \(index)", owner: .ai,
+                targets: [.init(kind: "file", path: "Map\(index).java")], acceptance: ["Review mapping"], questions: [])
+        }
+        let package = CollaborationWorkflow(schemaVersion: 2, id: "parallel", version: "1", title: "Parallel maps", requirement: "maps",
+            steps: steps, prompts: [:], dependsOn: ["task-0": [], "task-1": []])
+        feature.importWorkflow(data: try JSONEncoder().encode(package))
+        #expect(feature.plan?.steps.count == 1)
+        feature.perform("confirm"); feature.perform("start")
+        var settings = CommitMessageAISettings.default
+        let provider = AIProviderProfile(name: "fixture", endpoint: "https://example.test/v1", model: "fixture", apiProtocol: .chatCompletions)
+        settings.providers = [provider]; settings.activeProviderID = provider.id
+        let firstCommit = TestGate(), release = TestGate()
+        var commits = 0
+        let operation = feature.executePi(settings: settings, projectPaths: [], prepareRead: {}) { intent in
+            #expect(try adapter.pending(workspace: workspace) == nil)
+            commits += 1
+            if commits == 1 {
+                firstCommit.open()
+                guard await release.waitUntilOpen() else { throw PiAgentFailure.timedOut }
+            }
+            try adapter.apply(intent, workspace: workspace)
+        }
+        defer { release.open(); operation?.cancel() }
+        #expect(await firstCommit.waitUntilOpen())
+        #expect(await runner.bothWriting.waitUntilOpen())
+        #expect(commits == 1, "Second model cannot enter a pending journal commit")
+        release.open()
+        await operation?.value
+        #expect(feature.error == nil)
+        #expect(feature.plan?.phase == .review)
+        #expect(commits == 2)
+        #expect(feature.receipts.count == 2)
+        #expect(Set(feature.receipts.map(\.key)).count == 2, "Identical tool IDs in separate sessions must remain distinct")
+        #expect(await runner.scopeRejections == 2)
+        #expect(try adapter.pending(workspace: workspace) == nil)
+        #expect(try String(contentsOf: workspace.appendingPathComponent("Map0.java"), encoding: .utf8) == "map-0")
+        #expect(try String(contentsOf: workspace.appendingPathComponent("Map1.java"), encoding: .utf8) == "map-1")
+        await feature.shutdown()
+    }
+
     @Test func humanStartCreatesOnlyAnEmptyFileAndPreservesExistingCode() throws {
         try fixture { root, adapter in
             try adapter.prepareHumanFile(path: "Core.java", workspace: root)
@@ -307,4 +361,28 @@ private final class CollaborationExecutionStore: KeyValueStore {
     func string(forKey key: String) -> String? { values[key] as? String }
     func stringArray(forKey key: String) -> [String]? { values[key] as? [String] }
     func set(_ value: Any?, forKey key: String) { values[key] = value }
+}
+
+private actor ParallelToolPi: PiAgentRunning {
+    nonisolated let bothWriting = TestGate()
+    nonisolated let grantsChecked = TestGate()
+    private var writing = 0
+    private(set) var scopeRejections = 0
+    func run(_ request: PiAgentRequest, onEvent: @escaping @Sendable (PiAgentEvent) async -> Void,
+             tool: @escaping @Sendable (PiToolRequest) async throws -> Data) async throws -> String {
+        let index = request.runID.hasSuffix(".0") ? 0 : 1
+        // A sibling's target is in the wave but never in this session's grant.
+        do {
+            _ = try await tool(.init(runId: request.runID, toolCallId: "denied", name: "workspace_apply",
+                arguments: .init(changes: [.init(target: .init(kind: "file", path: "Map\(1 - index).java"), expectedText: nil, replacement: "forbidden")])) )
+            Issue.record("Sibling write should be denied")
+        } catch PiAgentFailure.toolDenied { scopeRejections += 1 }
+        if scopeRejections == 2 { grantsChecked.open() }
+        guard await grantsChecked.waitUntilOpen() else { throw PiAgentFailure.timedOut }
+        writing += 1
+        if writing == 2 { bothWriting.open() }
+        _ = try await tool(.init(runId: request.runID, toolCallId: "same-id", name: "workspace_apply",
+            arguments: .init(changes: [.init(target: .init(kind: "file", path: "Map\(index).java"), expectedText: nil, replacement: "map-\(index)")])))
+        return "已写入；未运行测试。"
+    }
 }

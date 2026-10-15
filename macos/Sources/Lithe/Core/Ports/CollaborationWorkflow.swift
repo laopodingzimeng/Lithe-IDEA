@@ -13,13 +13,19 @@ struct CollaborationWorkflow: Codable, Identifiable, Sendable {
     /// scheduling metadata, never an additional write target or Core action.
     var independentFiles: [String: [String]]? = nil
 
+    /// v2 retains original tasks; Core compiles them into human-accepted waves.
+    var dependsOn: [String: [String]]? = nil
+
     func validate() throws {
-        guard schemaVersion == 1, !id.isEmpty, id.count <= 128,
+        guard [1, 2].contains(schemaVersion), !id.isEmpty, id.count <= 128,
               id.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == ".") }),
               !version.isEmpty, !title.isEmpty, !requirement.isEmpty,
               !steps.isEmpty, steps.count <= 100,
               Set(steps.map(\.id)).count == steps.count,
               prompts.keys.allSatisfy({ key in steps.contains { $0.id == key } }) else {
+            throw CollaborationFailure.invalidPackage
+        }
+        guard schemaVersion == 1 ? dependsOn == nil : (dependsOn != nil && independentFiles == nil) else {
             throw CollaborationFailure.invalidPackage
         }
         for step in steps {
@@ -96,13 +102,23 @@ struct CollaborationAction: Encodable, Sendable {
     var answers: [String]? = nil
 }
 
+struct CollaborationSchedule: Codable, Sendable {
+    let steps: [CollaborationStep]
+    let groups: [String: [String]]
+}
+
 protocol CollaborationPlanOperating: Sendable {
+    func schedule(_ workflow: CollaborationWorkflow) throws -> CollaborationSchedule
     func transition(_ plan: CollaborationPlan, action: CollaborationAction) throws -> CollaborationPlan
     func prepare(_ plan: CollaborationPlan, files: [CollaborationFile], changes: [CollaborationChange]) throws -> CollaborationReceipt
     func reverse(_ receipt: CollaborationReceipt, files: [CollaborationFile]) throws -> CollaborationReceipt
 }
 
 extension CollaborationPlanOperating {
+    func schedule(_ workflow: CollaborationWorkflow) throws -> CollaborationSchedule {
+        guard workflow.schemaVersion == 1 else { throw CollaborationFailure.unavailable }
+        return CollaborationSchedule(steps: workflow.steps, groups: [:])
+    }
     func prepare(_ plan: CollaborationPlan, files: [CollaborationFile], changes: [CollaborationChange]) throws -> CollaborationReceipt { throw CollaborationFailure.unavailable }
     func reverse(_ receipt: CollaborationReceipt, files: [CollaborationFile]) throws -> CollaborationReceipt { throw CollaborationFailure.unavailable }
 }
@@ -117,7 +133,7 @@ enum CollaborationFailure: LocalizedError {
     case invalidPackage, unavailable, activePlan, missingProject, missingEvidence, invalidState
     var errorDescription: String? {
         switch self {
-        case .invalidPackage: "工作流包无效或版本不兼容，请使用 schemaVersion 1 的桌面工作流包。"
+        case .invalidPackage: "工作流包无效或版本不兼容，请使用 schemaVersion 1 或 2 的桌面工作流包。"
         case .unavailable: "当前宿主尚未提供协作计划能力。"
         case .activePlan: "当前计划尚未结束。请先完成或明确结束当前计划，再载入新的工作流。"
         case .missingProject: "请先打开项目。"

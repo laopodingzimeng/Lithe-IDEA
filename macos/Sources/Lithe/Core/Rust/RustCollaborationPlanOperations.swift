@@ -2,6 +2,14 @@ import Foundation
 
 struct RustCollaborationPlanOperations: CollaborationPlanOperating {
     let core: RustCoreBridge
+    func schedule(_ workflow: CollaborationWorkflow) throws -> CollaborationSchedule {
+        if workflow.schemaVersion == 1 { return CollaborationSchedule(steps: workflow.steps, groups: [:]) }
+        struct Payload: Encodable { let steps: [CollaborationStep]; let dependsOn: [String: [String]] }
+        guard let dependsOn = workflow.dependsOn else { throw CollaborationFailure.invalidPackage }
+        let result: Result<CollaborationSchedule, RustCoreBridge.CoreCallError> = core.executeResult(
+            command: "collaboration.schedule", payload: Payload(steps: workflow.steps, dependsOn: dependsOn))
+        return try result.get()
+    }
     func transition(_ plan: CollaborationPlan, action: CollaborationAction) throws -> CollaborationPlan {
         struct Payload: Encodable {
             let plan: CollaborationPlan

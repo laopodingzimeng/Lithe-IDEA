@@ -142,6 +142,9 @@ fn execute(request: &str) -> CoreResponse {
         CoreCommand::CollaborationPrepare => {
             plugin_response(id, parsed.payload, crate::collaboration::prepare)
         }
+        CoreCommand::CollaborationSchedule => {
+            plugin_response(id, parsed.payload, crate::collaboration::schedule)
+        }
         CoreCommand::CollaborationReverse => {
             plugin_response(id, parsed.payload, crate::collaboration::reverse)
         }

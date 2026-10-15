@@ -39,6 +39,11 @@ write 工具会越过人工核心代码的授权范围，且同一步多次写�
 - 关键事实与收据在同一 session.json 中保存。撤销后原快照进入归档收据，回放不从活文件补内容。
   独立的 playback.json 只存讲解与观看位置，索引损坏时从收据重建基础章节，不能阻断开发写入。
   每个索引保存都有版本号，迟到保存不能覆盖新游标；详细字段以共享录制契约为准。
+- 需求探索也通过 Pi 只读工具完成。工作流 v2 声明全部任务依赖，由 Core 检查循环和权限后
+  编译为分批验收的任务组；同文件写入排队，人工作业单独交接。任务组内模型最多八个并发，
+  默认三个。每个会话只能写自己的目标，全部工作区工具通过同一队列完成检查、写入和收据保存。
+  这保留旧状态机的人工验收边界；代价是某个已就绪任务可能等待同组其他任务验收。
+  一个任务失败会取消并等待兄弟任务结束，但已完成的实际修改保持独立收据，不声称整组原子性。
 - 演示请求独立排队，最多一批在途、八批待讲解，自动调用有数量预算。用户问题优先于后台讲解。
   B 的输出必须引用原事件和原快照，不能决定测试状态、扩大权限或移动用户固定的历史位置。
   开发与演示各自选择既有服务商档案和模型覆盖值，不改动 Git 提交消息的活动模型。
@@ -50,6 +55,7 @@ write 工具会越过人工核心代码的授权范围，且同一步多次写�
 
 - 直接运行 Pi CLI 默认工具：可以立即改文件，但绕过核心逻辑保护，拒绝。
 - 只把 Pi SDK 的文本接口当作 HTTP 客户端：仍需自己重写完整工具循环，不符合复用原则。
+- 为依赖图重写整个编辑状态机：会让权限与恢复拥有两套规则，采用 Core 确定性分组和现有验收状态机。
 - 仅使用 Node permission：可以限制 JavaScript API，但不能当作操作系统隔离证据。
 - 单步只保留最后一份收据：无法逐次撤销和定位中途失败，采用逐工具持久化。
 
@@ -64,6 +70,8 @@ write 工具会越过人工核心代码的授权范围，且同一步多次写�
 - `node scripts/test-pi-bridge.mjs`：真实 SDK、本地确定性三协议服务端、工具往返、取消、错误脱敏、子进程写隔离。
 - `scripts/test-macos.sh --filter CollaborationPlaybackTests`：演示阻塞时开发继续、历史版本固定、无效讲解降级与角色配置独立。
 - `scripts/test-macos.sh --filter CollaborationExecutionTests`：多工具收据、逐次撤销和提交过程中接管；需要仓库固定 Swift 工具链。
+- `scripts/test-macos.sh --filter CollaborationSchedulingTests`：有界并发、失败取消、写入队列取消。
+- `cargo test --manifest-path rust/Cargo.toml -p lithe-core collaboration::tests::`：依赖图、文件竞争与人机所有权。
 - `scripts/verify-service-boundaries.sh`：原生层间职责。
 - `scripts/verify-runtime-bundle-immutability.sh`：发行资源只读边界。
 - `node scripts/test-reuse-worktree-resources.mjs`：拒绝复制 Pi 状态和未封存依赖。

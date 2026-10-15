@@ -1,7 +1,7 @@
 # Rust Core API
 
 Human/AI collaboration commands `collaboration.transition`,
-`collaboration.prepare` and `collaboration.reverse` use the standard JSON envelope.
+`collaboration.prepare`, `collaboration.reverse` and `collaboration.schedule` use the standard JSON envelope.
 See [the collaboration contract](collaboration.md) for authority boundaries,
 payloads and host obligations; none of these commands performs filesystem writes.
 

@@ -93,3 +93,8 @@ deterministic provider fixtures, tool roundtrips, cancellation, three protocols,
 error redaction and an isolated worker. The macOS integration test independently
 proves descendant write denial without Node permission flags. This is process
 boundary evidence, not yet full desktop workflow or Windows verification.
+
+`run_finished.text` contains the last complete assistant message (bounded by the
+existing output limit). Earlier exploration commentary remains `text_delta`
+events but is not part of the final JSON plan. Older workers may omit `text`;
+the host's compatibility fallback is the collected stream.

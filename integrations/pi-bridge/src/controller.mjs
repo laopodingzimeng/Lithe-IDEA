@@ -50,7 +50,7 @@ export class WorkerController {
         requireValue(identifier(message.runId));
         requireValue(!this.#runIds.has(message.runId), 'duplicate_run');
         requireValue(typeof message.text === 'string' && message.text.length > 0 && message.text.length <= LIMITS.textChars);
-        const active = { id: message.runId, cancelled: false, timedOut: false, failed: false, settled: false, chars: 0, done: undefined };
+        const active = { id: message.runId, cancelled: false, timedOut: false, failed: false, settled: false, chars: 0, finalText: '', done: undefined };
         this.#runIds.add(message.runId);
         this.#active = active;
         this.#broker.start(active.id);
@@ -94,7 +94,7 @@ export class WorkerController {
     }
     const outcome = active.timedOut ? 'timeout' : active.cancelled ? 'cancelled' :
       active.failed || !active.settled ? 'failed' : 'completed';
-    this.#send({ type: 'run_finished', runId: active.id, outcome,
+    this.#send({ type: 'run_finished', runId: active.id, outcome, text: active.finalText,
       ...(outcome === 'failed' ? { code: 'model_request_failed' } : {}) });
   }
   async #cancel(active) {
@@ -122,6 +122,10 @@ export class WorkerController {
       case 'message_end': {
         const message = event.message;
         if (message.role !== 'assistant') return;
+        // Earlier exploration commentary is streamed, but is not the final JSON
+        // plan/review result consumed by the host after the tool loop settles.
+        active.finalText = message.content.filter(block => block.type === 'text').map(block => block.text).join('');
+        requireValue(active.finalText.length <= LIMITS.textChars, 'output_budget_exceeded');
         if (message.stopReason === 'error' || message.stopReason === 'aborted') active.failed = true;
         const usage = message.usage;
         if (usage) {

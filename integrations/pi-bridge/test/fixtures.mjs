@@ -54,10 +54,10 @@ export function textReply(entry, text) {
   entry.response.end('data: [DONE]\n\n');
 }
 
-export function toolReply(entry, name, params) {
+export function toolReply(entry, name, params, commentary = undefined) {
   entry.response.writeHead(200, { 'Content-Type': 'text/event-stream' });
   const tool = { index: 0, id: 'call_fixture', type: 'function', function: { name, arguments: JSON.stringify(params) } };
-  entry.response.write('data: ' + JSON.stringify({ id: 'fixture', object: 'chat.completion.chunk', model: 'fixture-model', choices: [{ index: 0, delta: { role: 'assistant', tool_calls: [tool] }, finish_reason: null }] }) + '\n\n');
+  entry.response.write('data: ' + JSON.stringify({ id: 'fixture', object: 'chat.completion.chunk', model: 'fixture-model', choices: [{ index: 0, delta: { role: 'assistant', content: commentary, tool_calls: [tool] }, finish_reason: null }] }) + '\n\n');
   entry.response.write('data: ' + JSON.stringify({ id: 'fixture', object: 'chat.completion.chunk', model: 'fixture-model', choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] }) + '\n\n');
   entry.response.end('data: [DONE]\n\n');
 }
