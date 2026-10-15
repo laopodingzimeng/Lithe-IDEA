@@ -1202,6 +1202,7 @@ struct WorkbenchView: View {
     }
 
     private func isToolAvailable(_ tool: WorkbenchFeatureModel.ToolWindow) -> Bool {
+        if tool == .collaboration { return model.workspaceURL != nil }
         if let sidebar = tool.sidebar { return model.availableSidebarDestinations.contains(sidebar) && sidebar.isAvailable }
         if let contribution = contribution(for: tool), let renderer = moduleUIRegistry.renderer(for: contribution) {
             return renderer.isVisible(model)
@@ -1236,7 +1237,7 @@ struct WorkbenchView: View {
                 ForEach(model.workbenchFeature.tools(in: position).filter(isToolEntryVisible), id: \.self) { tool in
                     let entry = contribution(for: tool)
                     let renderer = entry.flatMap { moduleUIRegistry.renderer(for: $0) }
-                    let title = tool.sidebar.map { $0 == .changes ? "Commit" : $0.title } ?? entry?.title ?? tool.rawValue
+                    let title = tool.sidebar.map { $0 == .changes ? "Commit" : $0.title } ?? entry?.title ?? (tool == .collaboration ? "协作" : tool.rawValue)
                     let target = ToolWindowDragState.Target(position: position, before: tool)
                     if toolWindowDrag.source != nil && toolWindowDrag.target == target { toolWindowDropSlot }
                     activityToolButton(
@@ -1327,6 +1328,21 @@ struct WorkbenchView: View {
         if let tool, let sidebar = tool.sidebar { activeSidebar(sidebar, projectTreeRowHeight: settings.projectTreeRowHeight) }
         else if tool == .references { LanguageReferencesView() }
         else if tool == .spring { SpringEndpointsView() }
+        else if tool == .collaboration {
+            CollaborationPanel(feature: model.collaborationFeature,
+                importWorkflow: { model.importCollaborationWorkflow() },
+                openTarget: { model.openCollaborationTarget($0) },
+                generatePlan: { model.generateCollaborationPlan() },
+                execute: { model.executeCollaborationStep() },
+                undo: { model.undoCollaborationStep() },
+                rollback: { model.rollbackCollaborationWrite() },
+                runTests: { model.runTest(providerID: "java", scope: .workspace) },
+                copyPrompt: { model.platformUI.copyToClipboard(model.collaborationFeature.currentPrompt) },
+                openAgent: { model.activateAgentConversation(); model.showToolWindow(.agent) },
+                minimize: { model.workbenchFeature.setVisibility(.collaboration, isVisible: false) })
+                .onAppear { model.collaborationFeature.bind(workspace: model.workspaceURL) }
+                .onChange(of: model.workspaceURL) { _, workspace in model.collaborationFeature.bind(workspace: workspace) }
+        }
         else if let tool, let entry = contribution(for: tool), let renderer = moduleUIRegistry.renderer(for: entry) {
             ModuleToolContent(rendererID: renderer.id, contentIdentity: renderer.contentIdentity(model), content: renderer.content(model)).equatable()
         }

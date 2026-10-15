@@ -69,3 +69,5 @@ Core 现在提供计划状态转换、限定范围的修改准备和撤销准备
 - `rust/lithe-core/src/collaboration/`
 - `shared/contracts/collaboration.md`
 - `shared/fixtures/agent/collaboration-v1.json`
+
+原生计划面板的实现边界见 [桌面协作工作流](2026-10-14-native-collaboration-workflows.md)。
