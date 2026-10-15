@@ -1,5 +1,10 @@
 # Rust Core API
 
+Human/AI collaboration commands `collaboration.transition`,
+`collaboration.prepare` and `collaboration.reverse` use the standard JSON envelope.
+See [the collaboration contract](collaboration.md) for authority boundaries,
+payloads and host obligations; none of these commands performs filesystem writes.
+
 The Rust core is the shared application runtime for macOS SwiftUI and Windows
 React/Tauri. macOS calls the stable C ABI while the Tauri host links the Rust
 crate directly. The C ABI remains:
