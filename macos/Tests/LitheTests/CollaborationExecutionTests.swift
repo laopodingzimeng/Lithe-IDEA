@@ -81,6 +81,45 @@ struct CollaborationExecutionTests {
         }
     }
 
+    @MainActor @Test(.timeLimit(.minutes(1)))
+    func nativeModelAppliesOnlyPreparedChangesAndPersistsReceiptBeforeClearingJournal() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let workspace = root.appendingPathComponent("project")
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        try Data(source.utf8).write(to: workspace.appendingPathComponent("Order.java"))
+        let storage = CollaborationDiskStorage(root: root.appendingPathComponent("state"))
+        let adapter = MacCollaborationWorkspace(files: storage, documents: MacWorkspaceFileOperations())
+        let changes = [CollaborationChange(target: target, expectedText: "{ return \"old\"; }", replacement: "{ return \"new\"; }")]
+        struct Response: Encodable { let changes: [CollaborationChange] }
+        let response = String(decoding: try JSONEncoder().encode(Response(changes: changes)), as: UTF8.self)
+        let feature = CollaborationFeatureModel(operations: RustCollaborationPlanOperations(core: RustCoreBridge()),
+            store: CollaborationExecutionStore(), files: storage, generator: FixedCollaborationModel(response: response), editing: adapter)
+        feature.bind(workspace: workspace)
+        let package = CollaborationWorkflow(schemaVersion: 1, id: "execution", version: "1.0.0", title: "mapping",
+            requirement: "mapping", steps: plan().steps, prompts: [:])
+        feature.importWorkflow(data: try JSONEncoder().encode(package))
+        feature.perform("confirm"); feature.perform("start")
+        let operation = feature.execute(settings: .default) { intent in try adapter.apply(intent, workspace: workspace) }
+        await operation?.value
+        #expect(feature.error == nil)
+        #expect(feature.plan?.phase == .review)
+        #expect(feature.receipts.count == 1)
+        #expect(try adapter.pending(workspace: workspace) == nil)
+        #expect(try adapter.loadSession(workspace: workspace) != nil)
+        let restored = CollaborationFeatureModel(operations: RustCollaborationPlanOperations(core: RustCoreBridge()),
+            store: CollaborationExecutionStore(), files: storage, editing: adapter)
+        restored.bind(workspace: workspace)
+        #expect(restored.receipts.count == 1)
+        #expect(restored.plan?.paused == true)
+        let undo = restored.undo { intent in try adapter.apply(intent, workspace: workspace) }
+        await undo?.value
+        #expect(restored.error == nil)
+        #expect(restored.receipts.isEmpty)
+        #expect(try String(contentsOf: workspace.appendingPathComponent("Order.java"), encoding: .utf8) == source)
+    }
+
     @Test func nullFileIdentitySurvivesTheSwiftCoreBoundary() throws {
         let file = CollaborationFile(path: "new.java", text: nil)
         let value = try JSONSerialization.jsonObject(with: JSONEncoder().encode(file)) as! [String: Any]
@@ -106,4 +145,17 @@ private struct CollaborationDiskStorage: FileStorage {
     func removeItem(at url: URL) throws { try delegate.removeItem(at: url) }
     func moveItem(at sourceURL: URL, to destinationURL: URL) throws { try delegate.moveItem(at: sourceURL, to: destinationURL) }
     func copyItem(at sourceURL: URL, to destinationURL: URL) throws { try delegate.copyItem(at: sourceURL, to: destinationURL) }
+}
+
+private struct FixedCollaborationModel: CollaborationGenerating {
+    let response: String
+    func generate(system: String, prompt: String, settings: CommitMessageAISettings) async throws -> String { response }
+}
+private final class CollaborationExecutionStore: KeyValueStore {
+    private var values: [String: Any] = [:]
+    func data(forKey key: String) -> Data? { values[key] as? Data }
+    func object(forKey key: String) -> Any? { values[key] }
+    func string(forKey key: String) -> String? { values[key] as? String }
+    func stringArray(forKey key: String) -> [String]? { values[key] as? [String] }
+    func set(_ value: Any?, forKey key: String) { values[key] = value }
 }
