@@ -2,6 +2,9 @@ import Foundation
 import LitheCoreContracts
 
 public struct CommitMessageGenerationService: Sendable {
+    /// Workflows return plans and code, unlike short commit subjects. Keep their
+    /// bounded request budget separate from the existing commit/probe contract.
+    public static let workflowRequestTimeout: TimeInterval = 180
     private let transport: any AIHTTPTransport
     private let credentialResolver: any AIProviderCredentialResolver
 
@@ -76,9 +79,12 @@ public struct CommitMessageGenerationService: Sendable {
 
     /// Tool-free text generation shared by native workflows. This transport never
     /// grants a model filesystem, process, or Agent tool access.
+    // Commit reasoning settings are not workflow preferences. Let compatible
+    // providers use their model default instead of inheriting an old xhigh value.
     public func generateWorkflowText(system: String, prompt: String, settings: CommitMessageAISettings) async throws -> String {
         let result = try await generateRaw(systemPrompt: system, userPrompt: prompt,
-            settings: settings, maximumOutputTokens: 8192)
+            settings: settings, maximumOutputTokens: 8192,
+            includeReasoning: false, requestTimeout: Self.workflowRequestTimeout)
         guard result.utf8.count <= 1_048_576 else { throw CommitMessageGenerationError.emptyResponse }
         return result
     }
@@ -98,7 +104,8 @@ public struct CommitMessageGenerationService: Sendable {
         userPrompt: String,
         settings: CommitMessageAISettings,
         maximumOutputTokens: Int,
-        includeReasoning: Bool = true
+        includeReasoning: Bool = true,
+        requestTimeout: TimeInterval = 45
     ) async throws -> String {
         guard let provider = settings.activeProvider else {
             throw CommitMessageGenerationError.noProviderConfigured
@@ -165,7 +172,7 @@ public struct CommitMessageGenerationService: Sendable {
                 url: endpoint,
                 headers: headers,
                 body: body,
-                timeout: 45,
+                timeout: requestTimeout,
                 allowsInsecureHTTP: provider.allowsInsecureHTTP
             )
         )

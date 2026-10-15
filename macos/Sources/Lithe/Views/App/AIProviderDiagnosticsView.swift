@@ -14,6 +14,20 @@ struct AIProviderDiagnosticsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            Divider().padding(.vertical, 6)
+            Text("Model").font(LitheTheme.settingsStrongFont)
+            if !feature.models.isEmpty {
+                LitheSettingsSelect(selection: Binding(get: { provider.model }, set: selectModel),
+                    options: options, width: 320, accessibilityLabel: "Available models",
+                    title: { $0.isEmpty ? String(localized: "Select a model") : $0 }, localizesTitles: false,
+                    searchPrompt: "Search models")
+                    .disabled(configurationManaged || feature.busy || hasUnsavedKey)
+                if !configurationManaged {
+                    DisclosureGroup("Enter a model manually") { manualModel.padding(.top, 6) }
+                }
+            } else {
+                manualModel
+            }
             HStack(spacing: 8) {
                 Button("Fetch models") { feature.fetchModels() }
                     .buttonStyle(LitheSecondaryButtonStyle())
@@ -31,11 +45,6 @@ struct AIProviderDiagnosticsView: View {
                     .foregroundStyle(LitheTheme.warning)
             }
             if !feature.models.isEmpty {
-                LitheSettingsSelect(selection: Binding(get: { provider.model }, set: selectModel),
-                    options: options, width: 320, accessibilityLabel: "Available models",
-                    title: { $0.isEmpty ? String(localized: "Select a model") : $0 }, localizesTitles: false,
-                    searchPrompt: "Search models")
-                    .disabled(configurationManaged || feature.busy || hasUnsavedKey)
                 Text(String(format: String(localized: "%d models available. You can also enter a model manually."), feature.models.count))
                     .foregroundStyle(LitheTheme.secondaryText)
             } else if feature.modelState == .ready {
@@ -69,6 +78,13 @@ struct AIProviderDiagnosticsView: View {
     }
 
     @State private var featureProviderID: UUID?
+
+    private var manualModel: some View {
+        TextField("Model", text: Binding(get: { provider.model }, set: selectModel))
+            .litheSettingsTextField()
+            .disabled(configurationManaged || feature.busy || hasUnsavedKey)
+            .accessibilityLabel("Model")
+    }
 
     private func fetchIfConfigured() {
         featureProviderID = provider.id
