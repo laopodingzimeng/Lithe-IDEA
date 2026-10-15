@@ -1,0 +1,23 @@
+{
+  "id": "ai-provider-diagnostics",
+  "area": "AI",
+  "group": "服务商设置",
+  "capability": "协作与提交的服务商设置：获取真实模型列表、搜索选择或手填模型、调用所选模型测试连接、认证失败提示、导入配置的可编辑副本及使用入口",
+  "macos": {
+    "implementationStatus": "implemented",
+    "verificationStatus": "pending",
+    "evidence": [
+      "macos/Sources/Lithe/Views/App/AIProviderDiagnosticsView.swift",
+      "macos/Sources/LitheAIAssistanceModule/Services/AIProviderDiagnosticsService.swift",
+      "macos/Tests/LitheAIAssistanceModuleTests/AIProviderDiagnosticsTests.swift",
+      "macos/Tests/LitheTests/AIProviderDiagnosticsFeatureTests.swift"
+    ]
+  },
+  "windows": {
+    "implementationStatus": "missing",
+    "verificationStatus": "not-applicable",
+    "evidence": ["shared/contracts/ai-commit.md"]
+  },
+  "owner": "AI",
+  "verification": "运行 AIProviderDiagnostics、CommitMessage 与 ContextMenuCoverage 原生测试；桌面验证模型获取、手填回退、三种协议的调用测试、401 提示、配置切换和取消、导入配置复制后选择模型；真实服务商和界面验收待完成。"
+}

@@ -12,19 +12,29 @@ struct MacURLSessionTransport: AIHTTPTransport {
             return try await MacPlainHTTPTransport(request: request).send()
         default:
             var urlRequest = URLRequest(url: request.url)
-            urlRequest.httpMethod = "POST"
-            urlRequest.httpBody = request.body
+            urlRequest.httpMethod = request.method.rawValue
+            urlRequest.httpBody = request.method == .get ? nil : request.body
             urlRequest.timeoutInterval = request.timeout
             request.headers.forEach { key, value in
                 urlRequest.setValue(value, forHTTPHeaderField: key)
             }
 
-            let (data, response) = try await URLSession.shared.data(for: urlRequest)
+            let (data, response) = try await URLSession.shared.data(for: urlRequest, delegate: AIHTTPRedirectPolicy())
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw AIHTTPTransportError.invalidResponse
             }
             return AIHTTPResponse(statusCode: httpResponse.statusCode, body: data)
         }
+    }
+}
+
+/// Keep credentials bound to the configured endpoint, including catalog requests.
+private final class AIHTTPRedirectPolicy: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest,
+                    completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
     }
 }
 
@@ -215,7 +225,7 @@ private final class MacPlainHTTPConnection: @unchecked Sendable {
         let hostHeader = url.port.map { "\(host):\($0)" } ?? host
 
         var lines = [
-            "POST \(target) HTTP/1.1",
+            "\(request.method.rawValue) \(target) HTTP/1.1",
             "Host: \(hostHeader)",
             "Connection: close",
             "Content-Length: \(request.body.count)"

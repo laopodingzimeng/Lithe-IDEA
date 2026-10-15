@@ -25,6 +25,8 @@ public protocol AIHTTPTransport: Sendable {
 }
 
 public struct AIHTTPRequest: Sendable {
+    public enum Method: String, Sendable { case get = "GET", post = "POST" }
+    public let method: Method
     public let url: URL
     public let headers: [String: String]
     public let body: Data
@@ -36,13 +38,15 @@ public struct AIHTTPRequest: Sendable {
         headers: [String: String],
         body: Data,
         timeout: TimeInterval,
-        allowsInsecureHTTP: Bool = false
+        allowsInsecureHTTP: Bool = false,
+        method: Method = .post
     ) {
         self.url = url
         self.headers = headers
         self.body = body
         self.timeout = timeout
         self.allowsInsecureHTTP = allowsInsecureHTTP
+        self.method = method
     }
 }
 

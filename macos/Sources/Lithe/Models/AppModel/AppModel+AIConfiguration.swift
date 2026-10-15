@@ -81,10 +81,11 @@ extension AppModel {
         configurationSource(for: provider)?.settingsDescription
     }
 
-    func saveAPIKey(_ value: String, for provider: AIProviderProfile) {
+    @discardableResult
+    func saveAPIKey(_ value: String, for provider: AIProviderProfile) -> Bool {
         if let source = configurationSource(for: provider) {
             showNotification("API key is managed by \(source.title) configuration")
-            return
+            return false
         }
         do {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -94,7 +95,23 @@ extension AppModel {
                 enableAIAssistanceModule()
             }
             showNotification("API key saved locally")
-        } catch { showNotification(error.localizedDescription) }
+            return true
+        } catch { showNotification(error.localizedDescription); return false }
+    }
+
+    /// Explicitly detach a profile from CLI ownership without modifying its source files.
+    func duplicateAIProvider(_ provider: AIProviderProfile) -> UUID? {
+        let copy = AIProviderProfile(name: String(format: String(localized: "%@ (copy)"), provider.name),
+            endpoint: provider.endpoint, model: provider.model, apiProtocol: provider.apiProtocol,
+            authentication: provider.authentication, allowsInsecureHTTP: provider.allowsInsecureHTTP,
+            requiresAPIKey: provider.requiresAPIKey, credentialSource: .local)
+        do {
+            if let key = services.credentialResolver.readAPIKey(for: provider), !key.isEmpty {
+                try services.secureStore.write(key, key: copy.apiKeyIdentifier)
+            }
+            settings.commitMessageAI.providers.append(copy)
+            return copy.id
+        } catch { showNotification(error.localizedDescription); return nil }
     }
 
     func loadAIConfigurations() -> [AIConfigurationSnapshot] {
