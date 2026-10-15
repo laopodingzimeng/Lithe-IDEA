@@ -77,7 +77,8 @@ async function readRegistry() {
     }
     identifiers.add(resource.id);
   }
-  // Includes collaboration journals and preferences: mutable workspace authority, never cache inputs.
+  // Includes collaboration journals, Pi worker state/dependency installs and
+  // preferences: mutable workspace authority or unsealed installs, never cache inputs.
   const excludedResources = registry.excludedResources ?? [];
   if (!Array.isArray(excludedResources)) throw new Error("Invalid excluded worktree resources");
   for (const resource of excludedResources) {
@@ -370,7 +371,7 @@ async function main() {
   const selected = options.resources.length > 0
     ? options.resources.map((identifier) => {
       // Generated matrix views, runtime snapshots, per-execution Java launch files, Sparkle baseline
-      // staging, per-launch Codex relays and isolated plugin packages take this rejection route,
+      // staging, Pi worker state/installations, per-launch Codex relays and isolated plugin packages take this rejection route,
       // never a content-hash validator.
       // Identical bytes do not establish transferable execution ownership.
       if (excludedResources.some((resource) => resource.id === identifier)) {

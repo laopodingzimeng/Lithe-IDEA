@@ -64,7 +64,13 @@ extension AppModel {
     }
 
     func executeCollaborationStep() {
-        collaborationFeature.execute(settings: settings.commitMessageAI, prepareRead: { [weak self] in
+        guard let root = workspaceURL else { return }
+        let prefix = root.standardizedFileURL.path + "/"
+        let paths = projectFiles.compactMap { url -> String? in
+            let path = url.standardizedFileURL.path
+            return path.hasPrefix(prefix) ? String(path.dropFirst(prefix.count)) : nil
+        }
+        collaborationFeature.executePi(settings: settings.commitMessageAI, projectPaths: paths, prepareRead: { [weak self] in
             guard let self, let root = self.workspaceURL, let plan = self.collaborationFeature.plan else { throw CancellationError() }
             let paths = Set(plan.steps.flatMap { $0.targets.map(\.path) })
             let documents = self.collaborationDocuments(paths: paths, root: root)

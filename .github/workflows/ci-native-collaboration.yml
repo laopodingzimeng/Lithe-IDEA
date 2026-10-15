@@ -1,8 +1,13 @@
 name: Build native collaboration macOS
 on:
   workflow_dispatch:
+    inputs:
+      package:
+        description: Build the desktop installer after validation
+        type: boolean
+        default: false
   push:
-    branches: [feat/extensible-collaboration-workbench, feat/ai-provider-model-discovery, fix/collaboration-panel-and-timeouts, feat/immersive-collaboration]
+    branches: [feat/extensible-collaboration-workbench, feat/ai-provider-model-discovery, fix/collaboration-panel-and-timeouts, feat/immersive-collaboration, feat/pi-dual-model-collaboration]
 permissions:
   contents: read
 concurrency:
@@ -17,6 +22,13 @@ jobs:
       LITHE_BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify the real Pi SDK bridge
+        run: |
+          npm ci --prefix integrations/pi-bridge --ignore-scripts --no-audit --no-fund
+          node scripts/test-pi-bridge.mjs
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: frontend/editor/package.json
@@ -45,6 +57,7 @@ jobs:
         timeout-minutes: 8
         run: ./.agents/skills/write-stable-tests/scripts/test-stability-macos.sh --report .artifacts/test-stability/native-collaboration.json -- --skip-build --filter 'Collaboration|CommitMessage|AIProviderDiagnostics|ContextMenuCoverage'
       - name: Package desktop application
+        if: inputs.package == true
         run: |
           ./scripts/package-app.sh
           ./scripts/create-dmg.sh
@@ -54,6 +67,7 @@ jobs:
             shasum -a 256 "$dmg" > "$dmg.sha256"
           done
       - uses: actions/upload-artifact@v7
+        if: inputs.package == true
         with:
           name: Lithe-collaboration-macos-arm64-${{ github.run_number }}
           path: |

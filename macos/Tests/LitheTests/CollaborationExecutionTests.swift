@@ -126,6 +126,83 @@ struct CollaborationExecutionTests {
         #expect(value["text"] is NSNull)
     }
 
+    @MainActor @Test(.timeLimit(.minutes(1)))
+    func piToolWritesHaveSeparateReceiptsAndUndoOneEditAtATime() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let workspace = root.appendingPathComponent("project")
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        try Data(source.utf8).write(to: workspace.appendingPathComponent("Order.java"))
+        let storage = CollaborationDiskStorage(root: root.appendingPathComponent("state"))
+        let adapter = MacCollaborationWorkspace(files: storage, documents: MacWorkspaceFileOperations())
+        let runner = ScriptedPiEdits(changes: [
+            .init(target: target, expectedText: "{ return \"old\"; }", replacement: "{ return \"first\"; }"),
+            .init(target: target, expectedText: "{ return \"first\"; }", replacement: "{ return \"second\"; }")
+        ])
+        let feature = CollaborationFeatureModel(operations: RustCollaborationPlanOperations(core: RustCoreBridge()),
+            store: CollaborationExecutionStore(), files: storage, editing: adapter, pi: runner)
+        feature.bind(workspace: workspace)
+        let package = CollaborationWorkflow(schemaVersion: 1, id: "pi", version: "1", title: "map", requirement: "map", steps: plan().steps, prompts: [:])
+        feature.importWorkflow(data: try JSONEncoder().encode(package))
+        feature.perform("confirm"); feature.perform("start")
+        var settings = CommitMessageAISettings.default
+        let provider = AIProviderProfile(name: "fixture", endpoint: "https://example.test/v1", model: "fixture", apiProtocol: .chatCompletions)
+        settings.providers = [provider]; settings.activeProviderID = provider.id
+        let operation = feature.executePi(settings: settings, projectPaths: ["Order.java"], prepareRead: {}) { intent in
+            #expect(intent.continuesStep == true)
+            try adapter.apply(intent, workspace: workspace)
+        }
+        await operation?.value
+        #expect(feature.error == nil)
+        #expect(feature.plan?.phase == .review)
+        #expect(feature.receipts.count == 2)
+        #expect(Set(feature.receipts.map(\.key)).count == 2)
+        #expect(try adapter.pending(workspace: workspace) == nil)
+        feature.perform("pause")
+        await feature.undo { try adapter.apply($0, workspace: workspace) }?.value
+        #expect(feature.receipts.count == 1)
+        #expect(try String(contentsOf: workspace.appendingPathComponent("Order.java"), encoding: .utf8).contains("return \"first\";"))
+        await feature.undo { try adapter.apply($0, workspace: workspace) }?.value
+        #expect(feature.receipts.isEmpty)
+        #expect(try String(contentsOf: workspace.appendingPathComponent("Order.java"), encoding: .utf8) == source)
+    }
+
+    @MainActor @Test(.timeLimit(.minutes(1)))
+    func takeoverDuringCommitReconcilesTheWriteButPreventsTheNextTool() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let workspace = root.appendingPathComponent("project")
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        try Data(source.utf8).write(to: workspace.appendingPathComponent("Order.java"))
+        let storage = CollaborationDiskStorage(root: root.appendingPathComponent("state"))
+        let adapter = MacCollaborationWorkspace(files: storage, documents: MacWorkspaceFileOperations())
+        let feature = CollaborationFeatureModel(operations: RustCollaborationPlanOperations(core: RustCoreBridge()),
+            store: CollaborationExecutionStore(), files: storage, editing: adapter,
+            pi: ScriptedPiEdits(changes: [
+                .init(target: target, expectedText: "{ return \"old\"; }", replacement: "{ return \"first\"; }"),
+                .init(target: target, expectedText: "{ return \"first\"; }", replacement: "{ return \"second\"; }")
+            ]))
+        feature.bind(workspace: workspace)
+        let package = CollaborationWorkflow(schemaVersion: 1, id: "pi", version: "1", title: "map", requirement: "map", steps: plan().steps, prompts: [:])
+        feature.importWorkflow(data: try JSONEncoder().encode(package))
+        feature.perform("confirm"); feature.perform("start")
+        var settings = CommitMessageAISettings.default
+        let provider = AIProviderProfile(name: "fixture", endpoint: "https://example.test/v1", model: "fixture", apiProtocol: .chatCompletions)
+        settings.providers = [provider]; settings.activeProviderID = provider.id
+        let operation = feature.executePi(settings: settings, projectPaths: ["Order.java"], prepareRead: {}) { intent in
+            try adapter.apply(intent, workspace: workspace)
+            feature.takeOver()
+        }
+        await operation?.value
+        await feature.shutdown()
+        #expect(feature.receipts.count == 1)
+        #expect(feature.plan?.paused == true)
+        #expect(try adapter.pending(workspace: workspace) == nil)
+        #expect(try String(contentsOf: workspace.appendingPathComponent("Order.java"), encoding: .utf8).contains("return \"first\";"))
+    }
+
     @Test func humanStartCreatesOnlyAnEmptyFileAndPreservesExistingCode() throws {
         try fixture { root, adapter in
             try adapter.prepareHumanFile(path: "Core.java", workspace: root)
@@ -162,6 +239,19 @@ private struct CollaborationDiskStorage: FileStorage {
 private struct FixedCollaborationModel: CollaborationGenerating {
     let response: String
     func generate(system: String, prompt: String, settings: CommitMessageAISettings) async throws -> String { response }
+}
+
+private struct ScriptedPiEdits: PiAgentRunning {
+    let changes: [CollaborationChange]
+    func run(_ request: PiAgentRequest, onEvent: @escaping @Sendable (PiAgentEvent) async -> Void,
+             tool: @escaping @Sendable (PiToolRequest) async throws -> Data) async throws -> String {
+        for (index, change) in changes.enumerated() {
+            try Task.checkCancellation()
+            _ = try await tool(PiToolRequest(runId: request.runID, toolCallId: "call-\(index)", name: "workspace_apply",
+                arguments: PiToolArguments(changes: [change])))
+        }
+        return "已完成两次有记录的修改，测试尚未执行。"
+    }
 }
 private final class CollaborationExecutionStore: KeyValueStore {
     private var values: [String: Any] = [:]

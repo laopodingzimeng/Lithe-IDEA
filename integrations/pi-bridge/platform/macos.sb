@@ -1,0 +1,10 @@
+;; Native host supplies canonical STATE and NODE paths. The initial executable
+;; and any descendant inherit this profile. Node's permission model additionally
+;; limits reads and disables child processes, native addons and worker creation.
+(version 1)
+(allow default)
+(deny file-write*)
+(allow file-write* (subpath (param "STATE")))
+(allow file-write-data (literal "/dev/null"))
+(deny process-exec)
+(allow process-exec (literal (param "NODE")))

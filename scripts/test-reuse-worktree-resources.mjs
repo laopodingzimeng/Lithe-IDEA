@@ -64,6 +64,14 @@ function reuse(extraArguments = []) {
 }
 
 try {
+  await test("Pi worker state and unsealed dependencies cannot cross worktrees", { timeout: 15000 }, () => {
+    const listed = run(process.execPath, [reuseScript, "--list"]);
+    assertSucceeded(listed);
+    assert.ok(!listed.stdout.includes("pi-worker-state"));
+    const refused = reuse(["--resource", "pi-worker-state"]);
+    assert.notEqual(refused.status, 0);
+    assert.match(diagnostics(refused), /pi-worker-state.*node_modules.*cannot be reused/);
+  });
   await test("bundled UI fonts come from Git and cannot be copied from worktree artifacts", { timeout: 15000 }, async () => {
     const listed = run(process.execPath, [reuseScript, "--list"]);
     assertSucceeded(listed);

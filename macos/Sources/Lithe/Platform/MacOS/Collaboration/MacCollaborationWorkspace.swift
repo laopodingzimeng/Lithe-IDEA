@@ -117,10 +117,11 @@ struct MacCollaborationWorkspace: CollaborationWorkspaceEditing {
     private func resolve(_ path: String, workspace: URL) throws -> URL {
         guard CollaborationWorkflow.isRelativePath(path) else { throw AgentEditRestoreError.outsideWorkspace }
         let root = workspace.standardizedFileURL.resolvingSymlinksInPath()
-        let lexical = workspace.appendingPathComponent(path)
+        let lexical = root.appendingPathComponent(path)
         let url = lexical.deletingLastPathComponent().resolvingSymlinksInPath().appendingPathComponent(lexical.lastPathComponent)
         guard url.pathComponents.starts(with: root.pathComponents), url.pathComponents.count > root.pathComponents.count,
-              url.resolvingSymlinksInPath() == url else { throw AgentEditRestoreError.outsideWorkspace }
+              url.resolvingSymlinksInPath() == url,
+              lexical.standardizedFileURL == url else { throw AgentEditRestoreError.outsideWorkspace }
         // New files require an existing directory; a package cannot create an
         // arbitrary directory tree as a side effect of requesting a snapshot.
         guard files.metadata(for: url.deletingLastPathComponent())?.isDirectory == true else {

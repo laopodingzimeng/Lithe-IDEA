@@ -18,7 +18,7 @@ final class AppModel: ObservableObject, Identifiable, UnsavedDocumentHandling {
     lazy var collaborationProviderDiagnostics = AIProviderDiagnosticsFeatureModel(service: services.aiProviderDiagnostics)
     lazy var collaborationFeature = CollaborationFeatureModel(
         operations: services.collaborationPlans, store: services.store, files: services.fileStorage,
-        generator: services.collaborationGenerator, editing: services.collaborationWorkspace
+        generator: services.collaborationGenerator, editing: services.collaborationWorkspace, pi: services.piAgent
     )
     lazy var ideCapabilities = IdeCapabilitiesFeatureModel(model: self)
     @Published var isChangingAgentProvider = false

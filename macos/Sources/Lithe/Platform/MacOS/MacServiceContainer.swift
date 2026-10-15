@@ -668,6 +668,7 @@ final class MacServiceContainer {
             collaborationGenerator: CollaborationGenerationService(service: CommitMessageGenerationService(
                 transport: MacURLSessionTransport(), credentialResolver: credentialResolver)),
             collaborationWorkspace: MacCollaborationWorkspace(files: fileStorage, documents: fileOperations),
+            piAgent: MacPiAgentRunner(files: fileStorage, credentials: credentialResolver),
             aiProviderDiagnostics: AIProviderDiagnosticsService(transport: MacURLSessionTransport(), credentials: credentialResolver)
         )
         services.ideCapabilityRegistry = ideCapabilityRegistry

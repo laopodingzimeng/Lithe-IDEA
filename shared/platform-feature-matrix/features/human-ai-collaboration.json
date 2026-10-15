@@ -2,7 +2,7 @@
   "id": "human-ai-collaboration",
   "area": "AI",
   "group": "人机协作",
-  "capability": "A 方案桌面沉浸式协作：项目定位与自动打开、真实流式草稿、可收起/放大/独立小窗、跟随与人工接管、固定提问；确认独立文件最多三路并发生成后统一受控写入",
+  "capability": "Pi SDK 桌面协作：独立角色模型、受控项目工具、逐次修改收据与接管；A 方案主编辑器、任务预览与小窗（双模型完整流程开发中）",
   "macos": {
     "evidence": [
       "rust/lithe-core/src/collaboration",
@@ -19,7 +19,12 @@
       "macos/Sources/Lithe/Services/CollaborationDraftService.swift",
       "macos/Tests/LitheTests/CollaborationImmersiveTests.swift",
       "macos/Tests/LitheTests/CollaborationHTTPStreamingTests.swift",
-      "docs/immersive-collaboration-plan.md"
+      "docs/immersive-collaboration-plan.md",
+      "integrations/pi-bridge/",
+      "shared/contracts/pi-bridge.md",
+      "macos/Sources/Lithe/Core/Ports/PiAgent.swift",
+      "macos/Sources/Lithe/Platform/MacOS/Collaboration/MacPiAgentRunner.swift",
+      "scripts/test-pi-bridge.mjs"
     ],
     "implementationStatus": "partial",
     "verificationStatus": "pending"
@@ -32,5 +37,5 @@
     "verificationStatus": "not-applicable"
   },
   "owner": "Agent",
-  "verification": "运行 Collaboration、CommitMessage、AIProviderDiagnostics、ContextMenuCoverage 原生测试和计时。验证 HTTP/HTTPS 真实流片段、截断拒绝、三路并发与接管取消；桌面验证自动定位、草稿与实际写入区分、编辑停止跟随、任务固定/放大/小窗关闭、核心交接与固定提问。Windows 尚无宿主实现；macOS 全流程实机体验待验收。"
+  "verification": "Node 真实 Pi SDK 三种协议、受控工具、取消和 macOS 子进程写隔离已通过本地测试；原生 CollaborationExecutionTests 新增逐工具撤销与接管回归，固定 Swift 工具链 CI 和桌面实际流程待验收。运行包安装、完整双模型演示、Windows 对等实现仍在开发，不能据 Node 通过标为完整可用。"
 }

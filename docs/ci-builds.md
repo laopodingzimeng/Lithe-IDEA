@@ -158,6 +158,13 @@ Swift 单元、插件和数据库 CI 通道复用已有 Cargo 下载缓存。先
 
 ### 独立工作树的本地编译
 
+Pi 受控执行器的依赖在各工作树运行 `npm ci --prefix integrations/pi-bridge --ignore-scripts`。
+`integrations/pi-bridge/node_modules/` 没有封存的复用身份，不跨工作树复制。锁文件固定
+Pi SDK 版本和依赖完整性；Node ABI、系统和架构仍由本次构建负责。
+`<Application Support>/Lithe/Pi/Sessions/<workspace-sha256>/<run-id>/` 属于单次任务，
+进程树退出后删除，禁止在任何复制阶段共享。两者通过 `pi-worker-state` 的拒绝路由校验，
+不会更改已签名 app bundle 或 Sparkle 增量基线。
+
 功能矩阵生成物 `.artifacts/platform-feature-matrix/`（CI Pages 使用
 `<runner-temp>/lithe-agent-notes-site/platform-feature-matrix/`）不允许跨工作树复用。
 它依赖当前 checkout 的能力记录、证据路径及提交信息，没有可靠的版本、平台、
@@ -339,12 +346,12 @@ CI 在 Windows frontend lane 构建并上传独立包，同时运行包、Worker
 步骤、问题、提示词、分工和验收条件均为数据。新增 Swift 控件或宿主权限仍需要构建。
 完整说明见 `docs/native-collaboration.md`。
 
-独立工作树继续隔离已有 `rust/target/` 和 Swift 编译输出。此功能不增加下载或解压物；运行时会话与恢复目录见下文，不能作为 worktree 复用资源。
-`ci-native-collaboration.yml` 先编译并验证原生协作测试，成功后才生成 DMG。
+独立工作树继续隔离已有 `rust/target/` 和 Swift 编译输出。Pi 依赖及执行状态见上文，运行时会话与恢复目录见下文，均不能作为 worktree 复用资源。
+`ci-native-collaboration.yml` 在功能分支推送时只验证 Pi 和原生测试；显式 dispatch 的 `package=true` 才生成 DMG，避免每轮修改重复打包。
 
 协作执行新增 `<Application Support>/Lithe/Collaboration/<workspace-sha256>/pending.json` 与 `session.json`。
 前者从首次写入前保留到状态持久化或显式恢复，后者保存项目计划与修改记录。
 两个文件及 `collaboration.library.v1` 偏好都是用户状态，不具有源码/平台/工具链复用身份，
 以 `collaboration-runtime-state` 在资源清单排除，任何 worktree 阶段都不能复制。
-新 workflow `ci-native-collaboration.yml` 在功能分支推送时先编译并验证原生测试，再生成 arm64 DMG；
+workflow `ci-native-collaboration.yml` 在显式请求打包时先编译并验证原生测试，再生成 arm64 DMG；
 后续仅工作流数据更新不需要再次构建。完整宿主升级仍需要 CI 编译。

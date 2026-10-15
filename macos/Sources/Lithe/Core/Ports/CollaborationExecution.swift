@@ -89,12 +89,16 @@ struct CollaborationReceipt: Codable, Sendable {
     let before: [CollaborationFile]
     let after: [CollaborationFile]
     let changes: [CollaborationChange]
-    var key: String { "\(planId):\(planVersion):\(stepId)" }
+    /// Host-issued identity for repeated Pi tool writes within one plan version.
+    var operationId: String? = nil
+    var key: String { "\(planId):\(planVersion):\(stepId)" + (operationId.map { ":" + $0 } ?? "") }
 }
 struct CollaborationPendingWrite: Codable, Sendable {
     let receipt: CollaborationReceipt
     let plan: CollaborationPlan
     let undo: Bool
+    /// Older one-shot HTTP receipts finish their step; Pi tool receipts do not.
+    var continuesStep: Bool? = nil
 }
 
 /// Calls only an HTTP text model; it has no Agent or process tools.
