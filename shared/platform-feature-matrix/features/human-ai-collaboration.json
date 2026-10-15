@@ -2,7 +2,7 @@
   "id": "human-ai-collaboration",
   "area": "AI",
   "group": "人机协作",
-  "capability": "人工主导协作：A 方案原生工具窗、当前模型切换与连接测试、单步引导及固定下一步；分析上下文总量限制、协作独立超时与中文重试提示；受控补丁、人工交接和验收",
+  "capability": "A 方案桌面沉浸式协作：项目定位与自动打开、真实流式草稿、可收起/放大/独立小窗、跟随与人工接管、固定提问；确认独立文件最多三路并发生成后统一受控写入",
   "macos": {
     "evidence": [
       "rust/lithe-core/src/collaboration",
@@ -14,7 +14,12 @@
       "docs/native-collaboration.md",
       "macos/Sources/Lithe/Platform/MacOS/Collaboration/MacCollaborationWorkspace.swift",
       "macos/Tests/LitheTests/CollaborationExecutionTests.swift",
-      "macos/Tests/LitheTests/CollaborationRequestTests.swift"
+      "macos/Tests/LitheTests/CollaborationRequestTests.swift",
+      "macos/Sources/Lithe/Views/Collaboration/CollaborationWorkspaceView.swift",
+      "macos/Sources/Lithe/Services/CollaborationDraftService.swift",
+      "macos/Tests/LitheTests/CollaborationImmersiveTests.swift",
+      "macos/Tests/LitheTests/CollaborationHTTPStreamingTests.swift",
+      "docs/immersive-collaboration-plan.md"
     ],
     "implementationStatus": "partial",
     "verificationStatus": "pending"
@@ -27,5 +32,5 @@
     "verificationStatus": "not-applicable"
   },
   "owner": "Agent",
-  "verification": "运行 Collaboration、CommitMessage、AIProviderDiagnostics、ContextMenuCoverage 原生测试和计时；桌面验证模型选择与设置跳转、短消息测试、需求保留与取消重试、关闭代码上下文、分工和固定底部操作、记录管理。分析上下文最多 24,000 字符，协作请求 180 秒并使用模型默认思考设置。当前配置短消息真实请求已成功；完整分析及原生界面验收待验证。"
+  "verification": "运行 Collaboration、CommitMessage、AIProviderDiagnostics、ContextMenuCoverage 原生测试和计时。验证 HTTP/HTTPS 真实流片段、截断拒绝、三路并发与接管取消；桌面验证自动定位、草稿与实际写入区分、编辑停止跟随、任务固定/放大/小窗关闭、核心交接与固定提问。Windows 尚无宿主实现；macOS 全流程实机体验待验收。"
 }

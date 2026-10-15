@@ -6,8 +6,16 @@ import LitheAIAssistanceModule
 struct CollaborationGenerationService: CollaborationGenerating {
     let service: CommitMessageGenerationService
     func generate(system: String, prompt: String, settings: CommitMessageAISettings) async throws -> String {
+        try await generateText(system: system, prompt: prompt, settings: settings, onText: nil)
+    }
+    func generate(system: String, prompt: String, settings: CommitMessageAISettings,
+                  onText: @escaping @Sendable (String) -> Void) async throws -> String {
+        try await generateText(system: system, prompt: prompt, settings: settings, onText: onText)
+    }
+    private func generateText(system: String, prompt: String, settings: CommitMessageAISettings,
+                              onText: (@Sendable (String) -> Void)?) async throws -> String {
         do {
-            return try await service.generateWorkflowText(system: system, prompt: prompt, settings: settings)
+            return try await service.generateWorkflowText(system: system, prompt: prompt, settings: settings, onText: onText)
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as URLError {

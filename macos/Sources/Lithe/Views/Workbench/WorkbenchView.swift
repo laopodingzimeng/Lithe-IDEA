@@ -1339,6 +1339,8 @@ struct WorkbenchView: View {
                 openTarget: { model.openCollaborationTarget($0) },
                 generatePlan: { model.generateCollaborationPlan() },
                 execute: { model.executeCollaborationStep() },
+                startStep: { model.startCollaborationStep() },
+                handoff: { model.handoffCollaborationStep() },
                 undo: { model.undoCollaborationStep() },
                 rollback: { model.rollbackCollaborationWrite() },
                 runTests: { model.runTest(providerID: "java", scope: .workspace) },
@@ -1458,7 +1460,7 @@ struct WorkbenchView: View {
                             GitHubFeatureUnavailableView()
                         }
                     } else {
-                        EditorAreaView()
+                        CollaborationWorkspaceView(feature: model.collaborationFeature, presentation: model.collaborationFeature.presentation)
                     }
                 }
             },

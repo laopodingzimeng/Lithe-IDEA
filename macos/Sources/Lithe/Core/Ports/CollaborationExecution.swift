@@ -25,6 +25,22 @@ enum CollaborationRequestFailure: LocalizedError {
 enum CollaborationPlanningContext {
     static let maximumCharacters = 24_000
     static let maximumFileCharacters = 6_000
+    static func canShare(_ path: String) -> Bool {
+        let url = URL(fileURLWithPath: path)
+        let name = url.lastPathComponent.lowercased()
+        return CollaborationWorkflow.isRelativePath(path)
+            && !path.split(separator: "/").contains(where: { $0.hasPrefix(".") })
+            && !["pem", "key", "p12", "pfx", "env", "keystore", "jks"].contains(url.pathExtension.lowercased())
+            && !["credentials", "secrets"].contains(where: { name.contains($0) })
+    }
+    static func catalog(_ paths: [String]) -> [String] {
+        var count = 0
+        return Array(Set(paths)).sorted().filter { path in
+            guard canShare(path), path.count <= 320, count + path.count + 1 <= 20_000 else { return false }
+            count += path.count + 1
+            return true
+        }.prefix(500).map { $0 }
+    }
     static func render(_ files: [CollaborationFile]) -> String {
         var result = ""
         for file in files.prefix(8) {
@@ -84,6 +100,18 @@ struct CollaborationPendingWrite: Codable, Sendable {
 /// Calls only an HTTP text model; it has no Agent or process tools.
 protocol CollaborationGenerating: Sendable {
     func generate(system: String, prompt: String, settings: CommitMessageAISettings) async throws -> String
+    func generate(system: String, prompt: String, settings: CommitMessageAISettings,
+                  onText: @escaping @Sendable (String) -> Void) async throws -> String
+}
+extension CollaborationGenerating {
+    func generate(system: String, prompt: String, settings: CommitMessageAISettings,
+                  onText: @escaping @Sendable (String) -> Void) async throws -> String {
+        // Non-streaming providers still expose the completed draft, without a
+        // synthetic typing animation or an extra network request.
+        let text = try await generate(system: system, prompt: prompt, settings: settings)
+        onText(text)
+        return text
+    }
 }
 struct UnavailableCollaborationGenerator: CollaborationGenerating {
     func generate(system: String, prompt: String, settings: CommitMessageAISettings) async throws -> String { throw CollaborationFailure.unavailable }

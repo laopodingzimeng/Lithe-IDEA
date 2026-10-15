@@ -32,6 +32,9 @@ public struct AIHTTPRequest: Sendable {
     public let body: Data
     public let timeout: TimeInterval
     public let allowsInsecureHTTP: Bool
+    /// Ordered decoded HTTP body fragments, before JSON/SSE parsing. Callers
+    /// must not treat a fragment as a successful or complete response.
+    public let onBody: (@Sendable (Data) -> Void)?
 
     public init(
         url: URL,
@@ -39,7 +42,8 @@ public struct AIHTTPRequest: Sendable {
         body: Data,
         timeout: TimeInterval,
         allowsInsecureHTTP: Bool = false,
-        method: Method = .post
+        method: Method = .post,
+        onBody: (@Sendable (Data) -> Void)? = nil
     ) {
         self.url = url
         self.headers = headers
@@ -47,6 +51,7 @@ public struct AIHTTPRequest: Sendable {
         self.timeout = timeout
         self.allowsInsecureHTTP = allowsInsecureHTTP
         self.method = method
+        self.onBody = onBody
     }
 }
 

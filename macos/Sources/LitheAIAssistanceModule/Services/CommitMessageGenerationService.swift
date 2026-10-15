@@ -81,10 +81,11 @@ public struct CommitMessageGenerationService: Sendable {
     /// grants a model filesystem, process, or Agent tool access.
     // Commit reasoning settings are not workflow preferences. Let compatible
     // providers use their model default instead of inheriting an old xhigh value.
-    public func generateWorkflowText(system: String, prompt: String, settings: CommitMessageAISettings) async throws -> String {
+    public func generateWorkflowText(system: String, prompt: String, settings: CommitMessageAISettings,
+                                    onText: (@Sendable (String) -> Void)? = nil) async throws -> String {
         let result = try await generateRaw(systemPrompt: system, userPrompt: prompt,
             settings: settings, maximumOutputTokens: 8192,
-            includeReasoning: false, requestTimeout: Self.workflowRequestTimeout)
+            includeReasoning: false, requestTimeout: Self.workflowRequestTimeout, onText: onText)
         guard result.utf8.count <= 1_048_576 else { throw CommitMessageGenerationError.emptyResponse }
         return result
     }
@@ -105,7 +106,8 @@ public struct CommitMessageGenerationService: Sendable {
         settings: CommitMessageAISettings,
         maximumOutputTokens: Int,
         includeReasoning: Bool = true,
-        requestTimeout: TimeInterval = 45
+        requestTimeout: TimeInterval = 45,
+        onText: (@Sendable (String) -> Void)? = nil
     ) async throws -> String {
         guard let provider = settings.activeProvider else {
             throw CommitMessageGenerationError.noProviderConfigured
@@ -125,7 +127,7 @@ public struct CommitMessageGenerationService: Sendable {
             throw CommitMessageGenerationError.missingAPIKey
         }
 
-        let body: Data
+        var body: Data
         switch provider.apiProtocol {
         case .responses:
             body = try encodeResponsesRequest(
@@ -167,18 +169,29 @@ public struct CommitMessageGenerationService: Sendable {
             headers["anthropic-version"] = "2023-06-01"
         }
 
+        let stream = onText.map { AIWorkflowStreamDecoder(onText: $0) }
+        if stream != nil {
+            var payload = try JSONSerialization.jsonObject(with: body) as! [String: Any]
+            payload["stream"] = true
+            body = try JSONSerialization.data(withJSONObject: payload)
+            headers["Accept"] = "text/event-stream, application/json"
+        }
+
         let response = try await transport.send(
             AIHTTPRequest(
                 url: endpoint,
                 headers: headers,
                 body: body,
                 timeout: requestTimeout,
-                allowsInsecureHTTP: provider.allowsInsecureHTTP
+                allowsInsecureHTTP: provider.allowsInsecureHTTP,
+                onBody: stream.map { decoder in { data in decoder.append(data) } }
             )
         )
         guard (200..<300).contains(response.statusCode) else {
             throw CommitMessageGenerationError.httpFailure(statusCode: response.statusCode)
         }
+
+        if let stream, let text = try stream.finish(body: response.body) { return text }
 
         switch provider.apiProtocol {
         case .responses:
