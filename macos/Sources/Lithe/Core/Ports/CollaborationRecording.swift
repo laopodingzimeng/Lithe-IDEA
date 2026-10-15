@@ -41,11 +41,18 @@ struct CollaborationNarration: Codable, Sendable {
                   let path = action.path, let snapshot = receipt?.after.first(where: { $0.path == path })
                     ?? receipt?.before.first(where: { $0.path == path }) else { throw CollaborationFailure.invalidPackage }
             if action.type == "highlight_lines" {
-                let count = (snapshot.text ?? "").split(separator: "\n", omittingEmptySubsequences: false).count
+                let source = snapshot.text ?? receipt?.before.first(where: { $0.path == path })?.text
+                guard let source else { throw CollaborationFailure.invalidPackage }
+                let count = Self.lines(source).count
                 guard let start = action.startLine, let end = action.endLine,
                       start >= 1, end >= start, end <= count else { throw CollaborationFailure.invalidPackage }
             }
         }
+    }
+
+    static func lines(_ source: String) -> [String] {
+        source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+            .components(separatedBy: "\n")
     }
 }
 

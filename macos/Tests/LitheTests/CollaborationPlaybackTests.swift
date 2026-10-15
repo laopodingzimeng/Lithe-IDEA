@@ -96,6 +96,20 @@ struct CollaborationPlaybackTests {
         roles.presentationProviderID = UUID()
         #expect(roles.provider(for: .presentation, in: settings) == nil)
     }
+
+    @Test func historicalHighlightUsesTheExistingSideAndAllSourceLineEndings() throws {
+        let deleted = CollaborationReceipt(planId: "plan", planVersion: 3, stepId: "map",
+            before: [.init(path: "Map.java", text: "one\r\ntwo\rthree")],
+            after: [.init(path: "Map.java", text: nil)], changes: [], operationId: "deletion")
+        let event = fact(1, receipt: deleted)
+        func narration(end: Int) -> CollaborationNarration {
+            .init(schemaVersion: 1, sourceEventIDs: [event.id], snapshotID: deleted.key, title: "历史代码",
+                explanation: "查看删除前的范围。", actions: [.init(type: "highlight_lines", path: "Map.java", startLine: 2, endLine: end)])
+        }
+        try narration(end: 3).validate(fact: event, receipt: deleted)
+        #expect(throws: CollaborationFailure.self) { try narration(end: 4).validate(fact: event, receipt: deleted) }
+        #expect(CollaborationNarration.lines("one\r\ntwo\rthree") == ["one", "two", "three"])
+    }
 }
 
 private actor PlaybackControlledPi: PiAgentRunning {

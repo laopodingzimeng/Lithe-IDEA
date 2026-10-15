@@ -80,7 +80,7 @@
 ### [P3] 开发维护计划与并行任务
 
 - **内容：** 需求探索；人机任务分工；依赖图；并发预算；文件竞争；人工接管
-- **进度：** doing
+- **进度：** review
 - **结束验收标准：** 开发维护均有闭环；依赖冲突与取消无迟到写入
 - **交付标准：** Core 契约、任务调度、fixtures、测试
 - **会用到的 MCP：** none
@@ -88,14 +88,14 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** Core 依赖图与确定性任务组、Pi 只读探索、有限并发和串行提交已编码；889 项 Rust 测试通过。原生任务组回归待 CI。
+- **备注：** 695f7c1d 的原生 CI 38737123235 通过 107 项测试；并发独立授权、同一写入队列和取消完成验证，桌面完整流程待 P8。
 
 ---
 
 ### [P4] 独立供应商设置与诊断
 
 - **内容：** 角色分别绑定供应商和模型；模型发现；各角色能力测试；预算
-- **进度：** doing
+- **进度：** review
 - **结束验收标准：** 不同端点和凭据正确路由；配置修改对活动操作隔离
 - **交付标准：** 设置模型、原生界面、诊断回归
 - **会用到的 MCP：** none
@@ -103,7 +103,7 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** 三种协议各自支持 Bearer/API Key/无认证，22 项真实 SDK 测试通过；原生能力诊断、独立预算和用量已编码，等待 CI 验证。
+- **备注：** 695f7c1d 的原生 CI 38737123235 通过 107 项测试（能力诊断、角色迁移、切换取消与显式讲解队列）；真实 SDK 22 项通过，设置界面完整验收待 P8。
 
 ---
 

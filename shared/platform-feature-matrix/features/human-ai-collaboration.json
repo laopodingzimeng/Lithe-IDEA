@@ -41,7 +41,8 @@
       "macos/Sources/Lithe/Views/Collaboration/CollaborationCompletionView.swift",
       "macos/Tests/LitheTests/CollaborationCompletionTests.swift",
       "shared/fixtures/collaboration/human-suggestion-v1.json",
-      "macos/Experiments/Monaco/workbench.integration.ts"
+      "macos/Experiments/Monaco/workbench.integration.ts",
+      "macos/Sources/Lithe/Views/Collaboration/CollaborationHistoricalCode.swift"
     ],
     "implementationStatus": "partial",
     "verificationStatus": "pending"
@@ -54,5 +55,5 @@
     "verificationStatus": "not-applicable"
   },
   "owner": "Agent",
-  "verification": "SDK 22 项与本轮 Rust Core 891 项通过，人工建议的两个 Core 用例各 7 ms。补全前后预览、接受/拒绝、旧文档版本保护及真实 WebKit 撤销回归已编码；编辑器资产编译通过，原生/WebKit 验证待 CI。P3/P4 正在 CI 38737123235 重验。共享契约仍有既存 Windows 浅色文字色不一致，运行包、完整桌面体验与 Windows 未完成。"
+  "verification": "695f7c1d 的 CI 38737123235 已通过原生编译和 107 项测试，SDK 22 项与 Rust Core 891 项通过。补全/编辑器撤销在 CI 38739425795 验证；历史演示已接入快照对比与讲解定位，保留手动位置并兼容混合换行/删除前版本，尚待原生验证。共享契约仍有既存 Windows 浅色文字色不一致；运行包、完整桌面体验与 Windows 未完成。"
 }
