@@ -177,16 +177,12 @@ public struct CommitMessageGenerationService: Sendable {
             headers["Accept"] = "text/event-stream, application/json"
         }
 
-        let response = try await transport.send(
-            AIHTTPRequest(
-                url: endpoint,
-                headers: headers,
-                body: body,
-                timeout: requestTimeout,
-                allowsInsecureHTTP: provider.allowsInsecureHTTP,
-                onBody: stream.map { decoder in { data in decoder.append(data) } }
-            )
-        )
+        let onBody: (@Sendable (Data) -> Void)?
+        if let stream { onBody = { data in stream.append(data) } }
+        else { onBody = nil }
+        let request = AIHTTPRequest(url: endpoint, headers: headers, body: body,
+            timeout: requestTimeout, allowsInsecureHTTP: provider.allowsInsecureHTTP, onBody: onBody)
+        let response = try await transport.send(request)
         guard (200..<300).contains(response.statusCode) else {
             throw CommitMessageGenerationError.httpFailure(statusCode: response.statusCode)
         }

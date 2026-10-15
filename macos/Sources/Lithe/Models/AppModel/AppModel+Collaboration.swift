@@ -95,13 +95,20 @@ extension AppModel {
         return documentFeature.editorDocuments.filter { urls.contains($0.url.standardizedFileURL.resolvingSymlinksInPath()) }
     }
 
-    func followCollaborationTarget(_ path: String) {
-        guard collaborationFeature.presentation.followsActivity else { return }
+    func followCollaborationTarget(_ path: String) async {
+        guard collaborationFeature.presentation.followsActivity, let root = workspaceURL,
+              CollaborationWorkflow.isRelativePath(path) else { return }
         if focusedEditorDocument?.isDirty == true {
             collaborationFeature.presentation.userDidEdit()
             return
         }
-        openCollaborationTarget(path)
+        let navigation = collaborationFeature.presentation.navigation
+        guard (try? services.collaborationWorkspace.snapshot(paths: [path], workspace: root).first?.text) != nil,
+              let document = await documentFeature.previewDocument(at: root.appendingPathComponent(path)),
+              !Task.isCancelled, workspaceURL == root, collaborationFeature.presentation.followsActivity,
+              collaborationFeature.presentation.navigation == navigation, focusedEditorDocument?.isDirty != true else { return }
+        documentFeature.promotePreviewDocument(document)
+        openFile(document.url)
     }
 
     func rollbackCollaborationWrite() {

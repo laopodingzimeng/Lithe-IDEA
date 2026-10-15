@@ -20,7 +20,7 @@ struct CollaborationWorkspaceView: View {
                     EditorAreaView()
                         .overlay {
                             if let preview = presentation.tasks.first(where: { $0.id == expandedID }) {
-                                CollaborationDraftPreview(preview: preview, showAll: true, open: {
+                                CollaborationDraftPreview(preview: preview, open: {
                                     open(preview)
                                 }, close: { expandedID = nil })
                                 .background(LitheTheme.editor)
@@ -34,11 +34,14 @@ struct CollaborationWorkspaceView: View {
                     .frame(width: 0, height: 0)
             }
         }
-        .onChange(of: presentation.navigation) { navigation in
-            guard let navigation, presentation.followsActivity else { return }
+        .task(id: presentation.navigation) {
+            guard let navigation = presentation.navigation, presentation.followsActivity else { return }
             if model.focusedEditorDocument?.isDirty != true { expandedID = nil }
-            model.followCollaborationTarget(navigation.path)
+            await model.followCollaborationTarget(navigation.path)
         }
+        .onAppear { feature.bind(workspace: model.workspaceURL) }
+        .onChange(of: model.workspaceURL) { feature.bind(workspace: $0) }
+        .onChange(of: presentation.editingRevision) { _ in expandedID = nil }
         .onChange(of: feature.plan?.id) { _ in expandedID = nil; floatingID = nil }
         .onChange(of: presentation.selectedID) { id in
             if presentation.followsActivity, expandedID != nil { expandedID = id }
@@ -61,7 +64,7 @@ struct CollaborationWorkspaceView: View {
                 else {
                     presentation.follow()
                     if let path = presentation.selected?.paths.first ?? feature.plan?.step?.targets.first?.path {
-                        model.followCollaborationTarget(path)
+                        presentation.requestOpen(path)
                     }
                 }
             }.buttonStyle(.plain).foregroundStyle(LitheTheme.secondaryText)
@@ -141,7 +144,6 @@ private struct CollaborationTaskCard: View {
 
 struct CollaborationDraftPreview: View {
     @ObservedObject var preview: CollaborationTaskPreview
-    var showAll = true
     let open: () -> Void
     let close: () -> Void
     var body: some View {
