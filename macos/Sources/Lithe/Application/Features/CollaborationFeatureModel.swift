@@ -89,6 +89,8 @@ final class CollaborationFeatureModel: ObservableObject {
                 checked = try operations.transition(session.plan, action: .init(kind: "pause"))
             }
             workflow = session.workflow; plan = checked; evidence = session.evidence; receipts = session.receipts ?? []
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            workflowDraftText = String(decoding: try encoder.encode(session.workflow), as: UTF8.self)
             resetInputs()
         } catch {
             recoveryFailed = true
@@ -98,7 +100,7 @@ final class CollaborationFeatureModel: ObservableObject {
 
     func importWorkflow(at url: URL) {
         do {
-            let data = try files.readPrefix(from: url, byteCount: Self.byteLimit + 1)
+            let data = try files.readPrefix(from: url, byteCount: 1_048_576 + 1)
             importWorkflow(data: data, source: url)
         } catch { self.error = error.localizedDescription }
     }
