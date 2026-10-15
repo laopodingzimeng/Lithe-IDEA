@@ -236,7 +236,10 @@ struct CollaborationPanel: View {
                 VStack(alignment: .leading, spacing: 10) {
                     hint("AI 分析不能代替编译与测试。仅记录实际完成的检查。")
                     TextEditor(text: $feature.resultText).font(LitheTheme.uiFont(size: 12)).frame(minHeight: 100)
-                    secondary("记录结果，提交验收") { feature.perform("workFinished") }
+                    secondary("记录结果，提交验收") {
+                        if plan.paused, step.owner == .ai { feature.completeTakenOverStep() }
+                        else { feature.perform("workFinished") }
+                    }
                         .disabled(feature.resultText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || locked)
                     secondary("复制本步任务说明", action: copyPrompt)
                     secondary("打开 Agent 对话", action: openAgent)

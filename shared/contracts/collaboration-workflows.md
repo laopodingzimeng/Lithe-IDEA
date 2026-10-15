@@ -49,6 +49,9 @@ Anthropic Messages, over HTTPS or explicitly enabled HTTP. Ordinary JSON respons
 are also accepted without retry. A stream must terminate successfully; truncated,
 failed and cancelled streams never become patches. Incomplete JSON replacement
 strings are read-only visual drafts, never input to Core or the filesystem.
+Explicit human start/open actions may create an absent, confirmed human whole-file
+target as an empty file through guarded native document writes. Existing code is
+preserved and no AI receipt is invented. Parent directories must already exist.
 Satellite previews are nonmodal and close with their owning workspace/execution.
 Follow is suspended when the user edits or pins a task. Starting a step and
 committing a generated file request ordinary editor navigation; missing planned

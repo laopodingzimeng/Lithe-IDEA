@@ -57,6 +57,21 @@ struct CollaborationImmersiveTests {
         #expect(await transport.count == 1)
     }
 
+    @Test func ordinaryJSONFallbackRejectsTruncatedOutput() async throws {
+        let payloads: [(CommitMessageAPIProtocol, String)] = [
+            (.responses, #"{"status":"incomplete","output_text":"partial"}"#),
+            (.chatCompletions, #"{"choices":[{"message":{"content":"partial"},"finish_reason":"length"}]}"#),
+            (.anthropicMessages, #"{"content":[{"type":"text","text":"partial"}],"stop_reason":"max_tokens"}"#)
+        ]
+        for (api, body) in payloads {
+            let service = CommitMessageGenerationService(transport: ImmersiveStreamTransport(body: body), credentialResolver: ImmersiveNoCredentials())
+            do {
+                _ = try await service.generateWorkflowText(system: "fixture", prompt: "fixture", settings: settings(api), onText: { _ in })
+                Issue.record("Truncated fallback was accepted")
+            } catch { #expect(error is CommitMessageGenerationError) }
+        }
+    }
+
     @Test func draftPreviewDoesNotConfuseQuotedKeysWithReplacement() {
         #expect(CollaborationDraftText.replacement(in: #"{"changes":[{"expectedText":"\"replacement\":\"wrong\"","replacement":"line\nnext"#) == "line\nnext")
         #expect(CollaborationDraftText.replacement(in: #"{"replacement":"abc\u4"#) == "abc")
@@ -134,6 +149,22 @@ struct CollaborationImmersiveTests {
         #expect(await generator.count == 0)
         #expect(writes == 0 && feature.error != nil)
         #expect(feature.presentation.tasks.allSatisfy { $0.state == .failed })
+        await feature.shutdown()
+    }
+
+    @MainActor @Test func manuallyCompletedTakeoverDoesNotRestartTheModel() async throws {
+        let generator = ImmersiveControlledGenerator()
+        let feature = CollaborationFeatureModel(operations: RustCollaborationPlanOperations(core: RustCoreBridge()),
+            store: ImmersiveMemoryStore(), files: UnavailableFileStorage(), generator: generator, editing: ImmersiveWorkspace())
+        feature.bind(workspace: URL(fileURLWithPath: "/fixture/project"))
+        feature.importWorkflow(data: try JSONEncoder().encode(workflow()))
+        feature.perform("confirm"); feature.perform("start"); feature.takeOver()
+        feature.resultText = "已人工实现映射；尚未运行测试"
+        feature.completeTakenOverStep()
+        #expect(feature.plan?.phase == .review)
+        #expect(feature.evidence["support"]?.contains("人工接管完成") == true)
+        #expect(feature.receipts.isEmpty)
+        #expect(await generator.count == 0)
         await feature.shutdown()
     }
 

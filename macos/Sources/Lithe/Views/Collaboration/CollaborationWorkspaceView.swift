@@ -36,7 +36,8 @@ struct CollaborationWorkspaceView: View {
         }
         .task(id: presentation.navigation) {
             guard let navigation = presentation.navigation, presentation.followsActivity else { return }
-            if model.focusedEditorDocument?.isDirty != true { expandedID = nil }
+            let generating = presentation.tasks.contains { [.waiting, .generating, .validating].contains($0.state) }
+            if !generating, model.focusedEditorDocument?.isDirty != true { expandedID = nil }
             await model.followCollaborationTarget(navigation.path)
         }
         .onAppear { feature.bind(workspace: model.workspaceURL) }
@@ -75,9 +76,10 @@ struct CollaborationWorkspaceView: View {
             Button("我来写") { feature.takeOver(); expandedID = nil }
                 .buttonStyle(LitheSecondaryButtonStyle(horizontalPadding: 9, height: 26, fontSize: 11))
                 .disabled(feature.plan?.phase == .draft || feature.plan?.phase == .complete || feature.plan?.paused == true)
-            if let core = feature.plan?.steps.first(where: { $0.owner == .human })?.targets.first {
-                Button("打开核心") { feature.takeOver(); expandedID = nil; model.openCollaborationTarget(core.path) }
+            if feature.plan?.steps.contains(where: { $0.owner == .human && !$0.targets.isEmpty }) == true {
+                Button("打开核心") { expandedID = nil; model.openCollaborationCore() }
                     .buttonStyle(.plain).foregroundStyle(LitheTheme.secondaryText)
+                    .disabled(feature.plan?.phase == .draft || feature.plan?.phase == .complete)
             }
         }
         .font(LitheTheme.uiFont(size: 11)).padding(.horizontal, 12).frame(height: 36)
@@ -100,7 +102,7 @@ struct CollaborationWorkspaceView: View {
     }
 
     private func open(_ preview: CollaborationTaskPreview) {
-        guard let path = preview.paths.first else { return }
+        guard let path = preview.openPath else { return }
         presentation.select(preview.id)
         model.openCollaborationTarget(path)
         expandedID = nil
@@ -131,7 +133,7 @@ private struct CollaborationTaskCard: View {
                 Text(preview.state.rawValue).foregroundStyle(preview.state == .written ? LitheTheme.success : LitheTheme.secondaryText)
                 if selected { Text("· 当前查看").foregroundStyle(LitheTheme.secondaryText) }
                 Spacer()
-                if preview.state == .written { Button("打开文件", action: open).buttonStyle(.plain).foregroundStyle(LitheTheme.accent) }
+                if preview.openPath != nil { Button("打开文件", action: open).buttonStyle(.plain).foregroundStyle(LitheTheme.accent) }
             }.font(LitheTheme.uiFont(size: 10)).padding(.horizontal, 10).padding(.bottom, 8)
             if !preview.minimized {
                 Divider()
@@ -146,16 +148,24 @@ struct CollaborationDraftPreview: View {
     @ObservedObject var preview: CollaborationTaskPreview
     let open: () -> Void
     let close: () -> Void
+    private var detail: String {
+        switch preview.state {
+        case .written: return "已写入项目 · 请在主编辑器审阅"
+        case .reviewed: return "只读分析 · 未修改项目"
+        case .recovery: return "写入中断 · 请先在协作面板核对或恢复"
+        default: return "\(preview.state.rawValue) · 只读草稿，尚未写入"
+        }
+    }
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(preview.paths.joined(separator: " · ")).lineLimit(1).truncationMode(.middle)
-                    Text(preview.state == .written ? "已写入项目 · 请在主编辑器审阅" : "\(preview.state.rawValue) · 只读草稿，尚未写入")
+                    Text(detail)
                         .foregroundStyle(LitheTheme.secondaryText)
                 }
                 Spacer(minLength: 4)
-                if preview.state == .written { Button("打开文件", action: open).buttonStyle(.plain) }
+                if preview.openPath != nil { Button("打开文件", action: open).buttonStyle(.plain) }
                 Button("返回编辑器", action: close).buttonStyle(.plain)
             }.font(LitheTheme.uiFont(size: 11)).padding(12).background(LitheTheme.sidebar)
             Divider()

@@ -76,7 +76,21 @@ final class AIWorkflowStreamDecoder: @unchecked Sendable {
         if !pending.isEmpty { consume(String(decoding: pending, as: UTF8.self)); pending.removeAll() }
         consume("")
         guard !failed else { throw CommitMessageGenerationError.invalidResponse }
-        guard sawEvent else { return nil }
+        guard sawEvent else {
+            // A provider may ignore stream=true. Its ordinary JSON response
+            // must still not advertise a truncated or unsuccessful generation.
+            if let value = try? JSONSerialization.jsonObject(with: body) as? [String: Any] {
+                let status = value["status"] as? String
+                let reason = value["stop_reason"] as? String
+                let choice = (value["choices"] as? [[String: Any]])?.first
+                let finish = choice?["finish_reason"] as? String
+                guard value["error"] == nil,
+                      status == nil || status == "completed",
+                      reason == nil || reason == "end_turn" || reason == "stop_sequence",
+                      finish == nil || finish == "stop" else { throw CommitMessageGenerationError.invalidResponse }
+            }
+            return nil
+        }
         guard complete, !text.isEmpty else { throw CommitMessageGenerationError.invalidResponse }
         onText(text)
         return text

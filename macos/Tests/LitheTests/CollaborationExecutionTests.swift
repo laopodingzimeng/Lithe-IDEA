@@ -125,6 +125,18 @@ struct CollaborationExecutionTests {
         let value = try JSONSerialization.jsonObject(with: JSONEncoder().encode(file)) as! [String: Any]
         #expect(value["text"] is NSNull)
     }
+
+    @Test func humanStartCreatesOnlyAnEmptyFileAndPreservesExistingCode() throws {
+        try fixture { root, adapter in
+            try adapter.prepareHumanFile(path: "Core.java", workspace: root)
+            #expect(try String(contentsOf: root.appendingPathComponent("Core.java"), encoding: .utf8).isEmpty)
+            try Data("human implementation".utf8).write(to: root.appendingPathComponent("Core.java"))
+            try adapter.prepareHumanFile(path: "Core.java", workspace: root)
+            #expect(try String(contentsOf: root.appendingPathComponent("Core.java"), encoding: .utf8) == "human implementation")
+            #expect(throws: AgentEditRestoreError.self) { try adapter.prepareHumanFile(path: "../outside.java", workspace: root) }
+            #expect(try adapter.pending(workspace: root) == nil, "Human creation is not an AI modification receipt")
+        }
+    }
 }
 
 private struct CollaborationDiskStorage: FileStorage {
