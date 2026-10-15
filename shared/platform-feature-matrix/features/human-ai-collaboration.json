@@ -45,5 +45,5 @@
     "verificationStatus": "not-applicable"
   },
   "owner": "Agent",
-  "verification": "061e29e2 的原生 CI 38731121279 编译和协作回归全部通过，包含逐工具撤销、接管、隔离 Java 验证与独立回放。新依赖调度的 Rust Core 889 项定时测试和 Node 真实 SDK 15 项测试通过；任务组与末条消息消费仍待本轮原生 CI。运行包、完整桌面体验与 Windows 未完成。"
+  "verification": "061e29e2 的原生 CI 38731121279 已通过 98 项测试。3090013e 的任务调度 CI 38733328474 因旧串行审查分支误用并发下标而编译失败，本次恢复首任务引用后重验。Rust Core 889 项与此版本 Node 15 项已通过；运行包、完整桌面体验与 Windows 未完成。"
 }

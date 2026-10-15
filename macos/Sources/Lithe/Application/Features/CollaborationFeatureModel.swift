@@ -489,7 +489,7 @@ final class CollaborationFeatureModel: ObservableObject {
                 guard context.utf8.count <= 512 * 1024 else { throw CollaborationFailure.invalidState }
                 let system = plan.phase == .checking ? "你是代码审查助手，只分析提供的源码。列出问题位置、触发条件及建议；没有执行工具，不得宣称编译或测试通过。" : Self.editInstructions
                 if plan.phase == .checking {
-                    self.presentation.tasks[index].state = .generating
+                    self.presentation.tasks.first?.state = .generating
                     let response = try await self.generator.generate(system: system,
                         prompt: self.currentPrompt + "\n源码快照：" + context, settings: settings, onText: { [weak self] text in
                             Task { @MainActor [weak self] in
