@@ -2942,3 +2942,5 @@
 "API or model not found (404). Check the URL, protocol and model name." = "API 或模型不存在（404），请检查地址、协议和模型名称。";
 "The provider rejected the request (429). Check the quota or retry later." = "请求被限制（429），请检查额度或稍后重试。";
 "Provider request failed (%d). Check the API protocol and provider status." = "服务商请求失败（%d），请检查 API 协议和服务商状态。";
+
+"Enter a model manually" = "手动填写模型 ID";

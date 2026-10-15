@@ -16,6 +16,8 @@ final class CollaborationFeatureModel: ObservableObject {
     @Published private(set) var hasPendingWrite = false
     @Published private(set) var library: [CollaborationWorkflow] = []
     @Published var requirementText = ""
+    @Published var includeEditorContext = true
+    @Published private(set) var activityTitle = "正在处理"
     @Published var workflowDraftText = ""
     private var task: Task<Void, Never>?
     private var generation = UUID()
@@ -241,12 +243,13 @@ final class CollaborationFeatureModel: ObservableObject {
         store.set(data, forKey: "collaboration.library.v1")
     }
 
-    func generatePlan(context: String, settings: CommitMessageAISettings) {
-        guard !busy, !hasPendingWrite, plan == nil || plan?.phase == .complete, workspaceURL != nil else { return }
+    @discardableResult
+    func generatePlan(context: String, settings: CommitMessageAISettings) -> Task<Void, Never>? {
+        guard !busy, !hasPendingWrite, plan == nil || plan?.phase == .complete, workspaceURL != nil else { return nil }
         let requirement = requirementText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !requirement.isEmpty else { error = "先填写开发或维护需求。"; return }
+        guard !requirement.isEmpty else { error = "先填写开发或维护需求。"; return nil }
         let operation = generation
-        busy = true; error = nil
+        busy = true; error = nil; activityTitle = "正在分析需求，生成分工计划"
         task = Task { [weak self] in
             guard let self else { return }
             defer { if self.generation == operation { self.busy = false; self.task = nil } }
@@ -257,8 +260,9 @@ final class CollaborationFeatureModel: ObservableObject {
                 guard self.generation == operation else { return }
                 self.busy = false
                 self.importWorkflow(data: Self.jsonData(result))
-            } catch { if self.generation == operation { self.error = error.localizedDescription } }
+            } catch { if self.generation == operation, !(error is CancellationError) { self.error = error.localizedDescription } }
         }
+        return task
     }
 
     @discardableResult
@@ -268,6 +272,7 @@ final class CollaborationFeatureModel: ObservableObject {
               plan.phase == .aiWorking || plan.phase == .checking else { return nil }
         let operation = generation
         busy = true; error = nil
+        activityTitle = plan.phase == .checking ? "正在只读分析你的实现" : "正在生成配套修改"
         task = Task { [weak self] in
             guard let self else { return }
             defer { if self.generation == operation { self.busy = false; self.task = nil } }
@@ -296,7 +301,7 @@ final class CollaborationFeatureModel: ObservableObject {
                     try self.completeWrite(.init(receipt: receipt, plan: plan, undo: false), workspace: root)
                 }
             } catch {
-                if self.generation == operation {
+                if self.generation == operation, !(error is CancellationError) {
                     self.error = error.localizedDescription
                     self.hasPendingWrite = (try? self.editing.pending(workspace: root)) != nil
                 }
@@ -396,6 +401,7 @@ final class CollaborationFeatureModel: ObservableObject {
     根据需求和提供的代码生成用户确认的开发计划。核心业务由 human 编写，配套与审查由 ai 完成；不确定问题挂在步骤上。只返回 JSON：
     {"schemaVersion":1,"id":"lowercase-ascii-id","version":"1.0.0","title":"标题","requirement":"需求","steps":[{"id":"step-id","title":"标题","owner":"human|ai","targets":[{"kind":"file","path":"workspace/relative/path"}],"acceptance":["验收条件"],"questions":[],"decisions":[]}],"prompts":{"step-id":"补充说明"}}
     同文件不同方法用 {"kind":"javaMethod","path":"...java","typeName":"类名","signature":"精确方法声明（不含方法体）"}。禁止 human 与 ai 范围重叠。只使用提供的项目路径和方法声明；未知位置留空 targets 并在 questions 中提示用户完善工作流，不能猜测授权范围。不生成示例实现。
+    计划保持精简，优先 3 至 5 步。每步 prompts 用简短中文解释当前要做什么、为什么以及如何确认完成，主动带着用户推进，不要求用户自己探索工具。截断的代码不是完整文件，不得猜测缺失内容。
     """
 
 }
