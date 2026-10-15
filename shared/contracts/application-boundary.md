@@ -20,6 +20,11 @@ verification scripts are the executable source of boundary checks.
 
 ## Feature Contracts
 
+The [human/AI collaboration Core contract](collaboration.md) defines host-owned
+plan transitions, scoped change preparation and conservative reversal. These
+pure commands do not yet constitute a native collaboration workflow or an Agent
+filesystem sandbox.
+
 Shared Monaco highlighting is owned by the current view/model pair. A queued
 callback for a closed or replaced model must finish without running against the
 new model or locking surviving documents. Primary, split and diff views share
