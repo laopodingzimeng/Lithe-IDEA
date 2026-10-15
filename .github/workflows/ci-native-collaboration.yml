@@ -2,7 +2,7 @@ name: Build native collaboration macOS
 on:
   workflow_dispatch:
   push:
-    branches: [feat/extensible-collaboration-workbench]
+    branches: [feat/extensible-collaboration-workbench, feat/ai-provider-model-discovery]
 permissions:
   contents: read
 concurrency:
@@ -43,7 +43,7 @@ jobs:
         run: ./scripts/test-macos.sh list > /dev/null
       - name: Test collaboration before packaging
         timeout-minutes: 8
-        run: ./.agents/skills/write-stable-tests/scripts/test-stability-macos.sh --report .artifacts/test-stability/native-collaboration.json -- --skip-build --filter 'Collaboration|CommitMessageGeneration'
+        run: ./.agents/skills/write-stable-tests/scripts/test-stability-macos.sh --report .artifacts/test-stability/native-collaboration.json -- --skip-build --filter 'Collaboration|CommitMessage|AIProviderDiagnostics|ContextMenuCoverage'
       - name: Package desktop application
         run: |
           ./scripts/package-app.sh

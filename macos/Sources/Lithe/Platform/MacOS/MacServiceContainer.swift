@@ -667,7 +667,8 @@ final class MacServiceContainer {
             collaborationPlans: RustCollaborationPlanOperations(core: rustCore),
             collaborationGenerator: CollaborationGenerationService(service: CommitMessageGenerationService(
                 transport: MacURLSessionTransport(), credentialResolver: credentialResolver)),
-            collaborationWorkspace: MacCollaborationWorkspace(files: fileStorage, documents: fileOperations)
+            collaborationWorkspace: MacCollaborationWorkspace(files: fileStorage, documents: fileOperations),
+            aiProviderDiagnostics: AIProviderDiagnosticsService(transport: MacURLSessionTransport(), credentials: credentialResolver)
         )
         services.ideCapabilityRegistry = ideCapabilityRegistry
         services.ideHostTransport = MacIdeHostTransport(core: rustCore, storage: fileStorage)

@@ -48,6 +48,7 @@ final class AppServices {
     let databaseSecureStore: any SecureStore
     let diagnosticsExportService: DiagnosticsExportService
     let credentialResolver: any AIProviderCredentialResolver
+    let aiProviderDiagnostics: any AIProviderDiagnosing
     /// Detects Node.js and installs ACP adapters for the Agents settings page.
     let agentManagement: any AgentManagementService
     let agentProviderConfigurationParser: any AgentProviderConfigurationParsing
@@ -107,7 +108,8 @@ final class AppServices {
         shortcutDetectorFactory: any ShortcutDetectorFactory,
         collaborationPlans: any CollaborationPlanOperating = UnavailableCollaborationPlanOperations(),
         collaborationGenerator: any CollaborationGenerating = UnavailableCollaborationGenerator(),
-        collaborationWorkspace: any CollaborationWorkspaceEditing = UnavailableCollaborationWorkspace()
+        collaborationWorkspace: any CollaborationWorkspaceEditing = UnavailableCollaborationWorkspace(),
+        aiProviderDiagnostics: any AIProviderDiagnosing = UnavailableAIProviderDiagnostics()
     ) {
         self.moduleRuntime = moduleRuntime
         self.pluginManager = pluginManager
@@ -147,6 +149,7 @@ final class AppServices {
         self.databaseSecureStore = databaseSecureStore
         self.diagnosticsExportService = diagnosticsExportService
         self.credentialResolver = credentialResolver
+        self.aiProviderDiagnostics = aiProviderDiagnostics
         self.agentManagement = agentManagement
         self.agentProviderConfigurationParser = agentProviderConfigurationParser
         self.aiConfigurationSources = aiConfigurationSources

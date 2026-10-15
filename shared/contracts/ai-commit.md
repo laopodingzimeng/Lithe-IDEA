@@ -90,5 +90,27 @@ Existing text requires replacement confirmation. Selection and patch fingerprint
 are rechecked before applying; edits made while confirming are preserved.
 
 Subject length is an instruction to the model, not a hard truncation guarantee.
+
+## macOS provider diagnostics
+
+The existing Swift provider service also exposes `AIProviderDiagnosing.models`
+and `testConnection`. Catalog discovery uses GET on the configured gateway's
+`models` endpoint with the provider's saved authentication. A full generation URL
+is reduced to its API base without losing gateway path prefixes. Anthropic pages
+use `has_more` and `last_id`, bounded to 20 pages, 2,000 IDs and 1 MiB per page.
+The catalog timeout is 15 seconds per request; lists remain in settings memory.
+Unsupported catalogs preserve manual model entry.
+
+A separate explicit probe uses the existing generation encoder and decoder,
+a fixed short message, a 45-second timeout and at most 1,024 output tokens.
+It sends no workspace code and omits optional reasoning settings. Catalog success
+does not establish model access; probe success requires a valid text response.
+Native HTTP requests do not follow redirects. Errors expose status categories,
+never provider response bodies or credentials.
+
+Settings cancel and invalidate pending results when the profile or credential
+draft changes, and cancel requests when the page closes. Imported profiles remain
+source-managed; an explicit editable copy stores credentials in the existing
+platform credential store, without modifying CLI configuration or active selection.
 Anthropic Messages does not receive reasoning-effort fields. Filesystem location,
 credential management and actual HTTP cancellation remain host-owned behavior.

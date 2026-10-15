@@ -83,11 +83,22 @@ public struct CommitMessageGenerationService: Sendable {
         return result
     }
 
+    /// An explicit settings probe, with fixed text and no workspace evidence.
+    public func testConnection(provider: AIProviderProfile) async throws {
+        var settings = CommitMessageAISettings.default
+        settings.providers = [provider]
+        settings.activeProviderID = provider.id
+        _ = try await generateRaw(systemPrompt: "You are testing an API connection.",
+            userPrompt: "Reply with OK.", settings: settings, maximumOutputTokens: 1024,
+            includeReasoning: false)
+    }
+
     private func generateRaw(
         systemPrompt: String,
         userPrompt: String,
         settings: CommitMessageAISettings,
-        maximumOutputTokens: Int
+        maximumOutputTokens: Int,
+        includeReasoning: Bool = true
     ) async throws -> String {
         guard let provider = settings.activeProvider else {
             throw CommitMessageGenerationError.noProviderConfigured
@@ -114,7 +125,7 @@ public struct CommitMessageGenerationService: Sendable {
                 provider: provider,
                 systemPrompt: systemPrompt,
                 userPrompt: userPrompt,
-                effort: settings.reasoningEffort,
+                effort: includeReasoning ? settings.reasoningEffort : nil,
                 maximumOutputTokens: maximumOutputTokens
             )
         case .chatCompletions:
@@ -122,7 +133,7 @@ public struct CommitMessageGenerationService: Sendable {
                 provider: provider,
                 systemPrompt: systemPrompt,
                 userPrompt: userPrompt,
-                effort: settings.reasoningEffort,
+                effort: includeReasoning ? settings.reasoningEffort : nil,
                 maximumOutputTokens: maximumOutputTokens
             )
         case .anthropicMessages:
@@ -341,7 +352,7 @@ public struct CommitMessageGenerationService: Sendable {
         provider: AIProviderProfile,
         systemPrompt: String,
         userPrompt: String,
-        effort: CommitMessageReasoningEffort,
+        effort: CommitMessageReasoningEffort?,
         maximumOutputTokens: Int
     ) throws -> Data {
         let request = ResponsesRequest(
@@ -350,7 +361,7 @@ public struct CommitMessageGenerationService: Sendable {
                 .init(role: "system", text: systemPrompt),
                 .init(role: "user", text: userPrompt)
             ],
-            reasoning: ResponsesReasoning(effort: effort.rawValue),
+            reasoning: effort.map { ResponsesReasoning(effort: $0.rawValue) },
             maxOutputTokens: maximumOutputTokens,
             store: false
         )
@@ -361,7 +372,7 @@ public struct CommitMessageGenerationService: Sendable {
         provider: AIProviderProfile,
         systemPrompt: String,
         userPrompt: String,
-        effort: CommitMessageReasoningEffort,
+        effort: CommitMessageReasoningEffort?,
         maximumOutputTokens: Int
     ) throws -> Data {
         let request = ChatCompletionsRequest(
@@ -371,7 +382,7 @@ public struct CommitMessageGenerationService: Sendable {
                 .init(role: "user", content: userPrompt)
             ],
             maximumTokens: maximumOutputTokens,
-            reasoningEffort: effort.rawValue
+            reasoningEffort: effort?.rawValue
         )
         return try JSONEncoder().encode(request)
     }

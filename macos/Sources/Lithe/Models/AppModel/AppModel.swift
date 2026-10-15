@@ -14,6 +14,7 @@ import LitheCoreContracts
 @MainActor
 final class AppModel: ObservableObject, Identifiable, UnsavedDocumentHandling {
     let id = UUID()
+    lazy var aiProviderDiagnostics = AIProviderDiagnosticsFeatureModel(service: services.aiProviderDiagnostics)
     lazy var collaborationFeature = CollaborationFeatureModel(
         operations: services.collaborationPlans, store: services.store, files: services.fileStorage,
         generator: services.collaborationGenerator, editing: services.collaborationWorkspace
@@ -629,6 +630,7 @@ final class AppModel: ObservableObject, Identifiable, UnsavedDocumentHandling {
     }
 
     func shutdownProjectSession() async {
+        await aiProviderDiagnostics.shutdown()
         await collaborationFeature.shutdown()
         await ideCapabilities.shutdown()
         shortcutSessionCoordinator?.shutdown()
