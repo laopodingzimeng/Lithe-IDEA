@@ -15,6 +15,8 @@ protocol CollaborationVerifying: Sendable {
 }
 
 struct UnavailableCollaborationVerifier: CollaborationVerifying {
+    // Stateless fallback is safe to construct in nonisolated default arguments.
+    nonisolated init() {}
     func verify(workspace: URL, actionID: String) async throws -> CollaborationVerificationResult {
         throw PiAgentFailure.toolDenied
     }

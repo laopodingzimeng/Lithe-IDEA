@@ -41,5 +41,5 @@
     "verificationStatus": "not-applicable"
   },
   "owner": "Agent",
-  "verification": "Node 真实 Pi SDK 与 macOS 原生初次编译已通过；首次原生回归发现逐工具撤销协议字段问题，已修复待重验。新隔离 Java 验证、历史快照回放、独立供应商模型和播放游标需下一轮原生 CI 与桌面体验验收。运行包安装及 Windows 对等实现仍在开发。"
+  "verification": "Node 真实 Pi SDK 14 项测试通过。第二轮原生 CI 38729626845 暴露验证器默认参数构造的 MainActor 编译错误，已显式使用无状态 nonisolated 初始化，等待原生重验。逐工具撤销修复、隔离 Java 验证、历史回放与独立模型需回归；运行包及 Windows 对等实现仍在开发。"
 }
