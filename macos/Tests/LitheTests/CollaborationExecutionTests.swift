@@ -370,6 +370,10 @@ private actor ParallelToolPi: PiAgentRunning {
     private(set) var scopeRejections = 0
     func run(_ request: PiAgentRequest, onEvent: @escaping @Sendable (PiAgentEvent) async -> Void,
              tool: @escaping @Sendable (PiToolRequest) async throws -> Data) async throws -> String {
+        // Automatic narration shares the runner port but has no development
+        // grant. This fixture models only developer sessions; narration uses
+        // the normal unavailable-explanation fallback without touching counters.
+        guard request.role == .development else { throw PiAgentFailure.modelFailed }
         let index = request.runID.hasSuffix(".0") ? 0 : 1
         // A sibling's target is in the wave but never in this session's grant.
         do {
