@@ -56,6 +56,9 @@ jobs:
       - name: Test collaboration before packaging
         timeout-minutes: 8
         run: ./.agents/skills/write-stable-tests/scripts/test-stability-macos.sh --report .artifacts/test-stability/native-collaboration.json -- --skip-build --filter 'Collaboration|CommitMessage|AIProviderDiagnostics|ContextMenuCoverage'
+      - name: Verify editor acceptance and undo in WebKit
+        timeout-minutes: 8
+        run: ./scripts/probe-macos-monaco.sh --workbench-tests
       - name: Package desktop application
         if: inputs.package == true
         run: |
@@ -80,4 +83,6 @@ jobs:
         if: always()
         with:
           name: native-collaboration-tests-${{ github.run_number }}
-          path: .artifacts/test-stability/
+          path: |
+            .artifacts/test-stability/
+            .artifacts/monaco-workbench/test-results/

@@ -284,6 +284,19 @@ export function mountWorkbench(host: WorkbenchHost) {
     fail(event.reason);
   });
 
+  function sendEditorChanges(id: string, owned: Entry, changes: { offset: number; length: number; text: string }[]) {
+    const baseRevision = owned.revision++;
+    owned.pendingEdits++;
+    owned.chain = owned.chain.then(async () => {
+      const reply = await send({ type: "edit", id, baseRevision, changes });
+      if (reply.revision !== owned.revision && reply.revision !== baseRevision + 1) throw new Error("Edit revision mismatch");
+    }).then(() => { owned.pendingEdits--; }, error => {
+      owned.pendingEdits--;
+      fail(error);
+      throw error;
+    });
+  }
+
   async function prepareEntry(payload: any): Promise<Entry> {
     let entry = entries.get(payload.id);
     const language = payload.language ? toMonacoLanguageId(payload.language) : languageForFilename(payload.filename);
@@ -305,17 +318,8 @@ export function mountWorkbench(host: WorkbenchHost) {
       model.onDidChangeContent(event => {
         scheduleNavigation(payload.id, owned);
         if (updating) return;
-        const baseRevision = owned.revision++;
         const changes = owned.source.apply(event.changes, model.getAlternativeVersionId());
-        owned.pendingEdits++;
-        owned.chain = owned.chain.then(async () => {
-          const reply = await send({ type: "edit", id: payload.id, baseRevision, changes });
-          if (reply.revision !== owned.revision && reply.revision !== baseRevision + 1) throw new Error("Edit revision mismatch");
-        }).then(() => { owned.pendingEdits--; }, error => {
-          owned.pendingEdits--;
-          fail(error);
-          throw error;
-        });
+        sendEditorChanges(payload.id, owned, changes);
       });
     } else {
       const languageChanged = (payload.language || payload.filename) && entry.model.getLanguageId() !== language;
@@ -951,6 +955,31 @@ export function mountWorkbench(host: WorkbenchHost) {
       entry.frozen = false;
       entry.freezeOperation = undefined;
       applyReadOnly(entry);
+    },
+    async acceptSuggestion(payload: { id: string; expectedText: string; text: string; revision: number; locationRevision: number }) {
+      await activation;
+      const entry = entries.get(payload.id);
+      if (!entry || failed) throw new Error("Editor is unavailable");
+      await drainInput(entry);
+      await entry.chain;
+      if (entries.get(payload.id) !== entry || entry.model.isDisposed() || failed || entry.readonly ||
+          entry.frozen || entry.closingHolds || entry.revision !== payload.revision ||
+          entry.locationRevision !== payload.locationRevision || entry.source.value !== payload.expectedText)
+        throw new Error("Suggestion is no longer current");
+      if (toMonacoModelValue(payload.text) === entry.model.getValue())
+        throw new Error("Suggestion must change editor content; newline-only changes are not supported here");
+      // Explicit acceptance is a separate undo group. Keep exact source newlines,
+      // then use the same acknowledged native edit queue as keyboard input.
+      updating = true;
+      try {
+        entry.model.pushStackElement();
+        entry.model.pushEditOperations([], [{ range: entry.model.getFullModelRange(), text: toMonacoModelValue(payload.text) }], () => null);
+        entry.model.pushStackElement();
+        entry.source.replace(payload.text, entry.model.getAlternativeVersionId());
+      } finally { updating = false; }
+      sendEditorChanges(payload.id, entry, [{ offset: 0, length: payload.expectedText.length, text: payload.text }]);
+      await entry.chain;
+      return true;
     },
     async replace(payload: any) {
       await activation;

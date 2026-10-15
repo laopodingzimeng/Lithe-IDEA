@@ -375,6 +375,40 @@ async function verify() {
     assert(snapshot.text === source, "rejected update changed text");
     window.lithe.unlock("A");
   });
+  await check("accepted human suggestion preserves exact bytes undo and native acknowledgement", async () => {
+    const id = "human-suggestion", text = "class Core {\r\n  // 人工 😀\n  int value = 1;\r}\n";
+    const replacement = text.replace("value = 1", "value = 2");
+    await send({ type: "open", id, text });
+    await window.lithe.activate({ id, text, revision: 0, locationRevision: 0, language: "java", readonly: false });
+    const target = editor.getModel()!;
+    try {
+      await window.lithe.acceptSuggestion({ id, expectedText: text, text: replacement, revision: 0, locationRevision: 0 });
+      const native = await send({ type: "fixtureSnapshot", id });
+      assert(native.text === replacement && native.revision === 1, "accepted suggestion was not acknowledged by the native edit queue");
+      await target.undo();
+      const undone = await window.lithe.freeze(id);
+      assert(undone.text === text, "one undo did not restore exact mixed newline and Unicode bytes");
+      window.lithe.unlock(id);
+      await target.redo();
+      const redone = await window.lithe.freeze(id);
+      assert(redone.text === replacement, "redo lost the accepted suggestion bytes");
+      window.lithe.unlock(id);
+      await assertRejects(() => window.lithe.acceptSuggestion({ id, expectedText: replacement, text,
+        revision: 0, locationRevision: 0 }), "stale suggestion revision was accepted");
+      await window.lithe.updateDocument({ id, filename: "Renamed.java", locationRevision: 1, readonly: false });
+      await assertRejects(() => window.lithe.acceptSuggestion({ id, expectedText: replacement, text,
+        revision: redone.revision, locationRevision: 0 }), "renamed document accepted an old suggestion");
+      await window.lithe.updateDocument({ id, filename: "Renamed.java", locationRevision: 1, readonly: true });
+      await assertRejects(() => window.lithe.acceptSuggestion({ id, expectedText: replacement, text,
+        revision: redone.revision, locationRevision: 1 }), "read-only document accepted a suggestion");
+      const unchanged = await send({ type: "fixtureSnapshot", id });
+      assert(unchanged.text === replacement, "a rejected suggestion changed the document");
+    } finally {
+      await window.lithe.retain(["A"]);
+      await window.lithe.activate({ id: "A", readonly: false });
+    }
+    assert(target.isDisposed(), "suggestion editor retained a closed document");
+  });
   await check("cross-file native mirror replacement retains target revision and undo", async () => {
     const original = "class Target {}\r\n";
     await send({ type: "open", id: "mirror-target", text: original });

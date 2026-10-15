@@ -52,6 +52,23 @@ extension AppModel {
         if collaborationFeature.plan?.phase == .checking { executeCollaborationStep() }
     }
 
+    func requestCollaborationSuggestion(_ target: CollaborationTarget) {
+        let feature = collaborationFeature
+        guard let root = workspaceURL, let plan = feature.plan, !feature.busy, !feature.hasPendingWrite,
+              let provider = feature.modelSettings.provider(for: .development, in: settings.commitMessageAI),
+              let document = documentFeature.editorDocuments.first(where: {
+                  $0.url.standardizedFileURL == root.appendingPathComponent(target.path).standardizedFileURL
+              }) else { feature.completion.reportUnavailable(); return }
+        feature.completion.request(document: document, workspace: root, plan: plan, target: target, provider: provider,
+            maximumOutputTokens: feature.modelSettings.developmentOutputTokens,
+            tokenBudget: feature.modelSettings.developmentTokenBudget) { [weak self, weak document] in
+                guard let self, let document else { return false }
+                return self.workspaceURL == root && self.collaborationFeature.plan?.id == plan.id &&
+                    self.collaborationFeature.plan?.version == plan.version && !self.collaborationFeature.hasPendingWrite &&
+                    self.documentFeature.editorDocuments.contains(where: { $0 === document })
+            }
+    }
+
     func openCollaborationCore() {
         guard let root = workspaceURL, let plan = collaborationFeature.plan,
               plan.phase != .draft, plan.phase != .complete, !collaborationFeature.hasPendingWrite,

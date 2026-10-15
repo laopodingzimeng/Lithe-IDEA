@@ -15,6 +15,7 @@ struct CollaborationPanel: View {
     let execute: () -> Void
     let startStep: () -> Void
     let handoff: () -> Void
+    let requestSuggestion: (CollaborationTarget) -> Void
     let undo: () -> Void
     let rollback: () -> Void
     let runTests: () -> Void
@@ -35,7 +36,13 @@ struct CollaborationPanel: View {
                 VStack(alignment: .leading, spacing: 18) {
                     if let error = feature.error { errorMessage(error) }
                     if feature.hasPendingWrite { recovery }
-                    if let plan = feature.plan { planContent(plan) }
+                    if let plan = feature.plan {
+                        planContent(plan)
+                        if plan.phase == .humanWorking, !plan.paused {
+                            CollaborationCompletionView(completion: feature.completion, targets: plan.step?.targets ?? [],
+                                open: openTarget, request: requestSuggestion)
+                        }
+                    }
                     else { requirementContent }
                     Divider()
                     management

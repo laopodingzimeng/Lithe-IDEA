@@ -53,6 +53,11 @@ write 工具会越过人工核心代码的授权范围，且同一步多次写�
   每个任务固定输出、时间、累计 tokens 预算；累计值在上游回报后检查，不能承诺等于账单费用上限。
   B 的输出必须引用原事件和原快照，不能决定测试状态、扩大权限或移动用户固定的历史位置。
   开发与演示各自选择既有服务商档案和模型覆盖值，不改动 Git 提交消息的活动模型。
+- 人工步骤的辅助补全不使用项目工具。Core 的 `collaboration.previewSuggestion` 只计算单个人工目标的
+  建议前后文本，不把人工步骤改成 AI 授权。用户明确接受后，编辑器重新检查文档与位置版本，再以
+  独立撤销组进入原有输入确认队列。精确换行由已有源文本镜像保留；用户继续打字、重命名或更换计划后，
+  旧建议失效。接受只修改未保存缓冲区，保存与交接仍由用户操作，不伪造 AI 写盘收据。
+  建议和基线只在内存中存活，拒绝、工作区切换与退出清理，不新增运行时目录或修改发行包。
 
 正确做法：Pi 请求修改映射方法，宿主检查原文后写入并返回真实收据，再允许下一次请求。
 不要让 Pi 返回的“已完成”替代收据，也不要把模型发出的 shell 命令交给终端执行。
@@ -77,6 +82,8 @@ write 工具会越过人工核心代码的授权范围，且同一步多次写�
 - `scripts/test-macos.sh --filter CollaborationPlaybackTests`：演示阻塞时开发继续、历史版本固定、无效讲解降级与角色配置独立。
 - `scripts/test-macos.sh --filter CollaborationExecutionTests`：多工具收据、逐次撤销和提交过程中接管；需要仓库固定 Swift 工具链。
 - `scripts/test-macos.sh --filter CollaborationSchedulingTests`：有界并发、失败取消、写入队列取消。
+- `scripts/test-macos.sh --filter CollaborationCompletionTests`：生成与拒绝不写入、接受仅进入缓冲区、迟到建议失效。
+- `scripts/probe-macos-monaco.sh --workbench-tests`：真实编辑器接受确认、混合换行与 Unicode 撤销/重做、过期位置和只读拒绝。
 - `cargo test --manifest-path rust/Cargo.toml -p lithe-core collaboration::tests::`：依赖图、文件竞争与人机所有权。
 - `scripts/verify-service-boundaries.sh`：原生层间职责。
 - `scripts/verify-runtime-bundle-immutability.sh`：发行资源只读边界。

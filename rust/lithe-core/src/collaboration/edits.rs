@@ -1,6 +1,6 @@
 //! Pure change preparation and conservative inversion of host-recorded edits.
 
-use super::plan::{Owner, Plan, Target};
+use super::plan::{Owner, Phase, Plan, Target};
 use super::{denied, invalid, valid_path};
 use crate::protocol::{cancellation, CoreError};
 use serde::{Deserialize, Serialize};
@@ -100,6 +100,36 @@ pub(super) fn prepare(request: PrepareRequest) -> Result<Prepared, CoreError> {
                 }
             }
         }
+    }
+    let (before, after, changes) = apply(request.files, request.changes)?;
+    Ok(Prepared {
+        plan_id: request.plan.id,
+        plan_version: request.plan.version,
+        step_id: request.step_id,
+        before,
+        after,
+        changes,
+    })
+}
+
+/// Projects a suggestion for the active human scope without granting AI write
+/// authority. Hosts must obtain explicit acceptance and recheck the live editor.
+pub(super) fn preview_suggestion(request: PrepareRequest) -> Result<Prepared, CoreError> {
+    request.plan.validate()?;
+    let step = &request.plan.steps[request.plan.current_step];
+    if request.plan.paused
+        || request.plan.phase != Phase::HumanWorking
+        || step.owner != Owner::Human
+        || request.plan.version != request.expected_version
+        || step.id != request.step_id
+        || request.changes.len() != 1
+        || !step.targets.contains(&request.changes[0].target)
+        || request.changes[0].expected_text.is_none()
+        || request.changes[0].replacement.is_none()
+    {
+        return Err(denied(
+            "A suggestion requires one active human editor target",
+        ));
     }
     let (before, after, changes) = apply(request.files, request.changes)?;
     Ok(Prepared {

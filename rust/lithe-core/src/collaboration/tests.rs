@@ -149,6 +149,46 @@ fn scoped_edit_preserves_core_logic_and_unicode_exactly() {
 }
 
 #[test]
+fn human_suggestion_is_a_preview_and_never_an_ai_write_grant() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../../shared/fixtures/collaboration/human-suggestion-v1.json"
+    ))
+    .unwrap();
+    let request = fixture["request"].clone();
+    let result = run("collaboration.previewSuggestion", request.clone());
+    assert_eq!(result["ok"], true, "{result}");
+    assert_eq!(result["data"]["after"], fixture["after"]);
+    assert_eq!(run("collaboration.prepare", request)["ok"], false);
+}
+
+#[test]
+fn human_suggestions_reject_stale_scope_deletion_and_method_escape() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../../shared/fixtures/collaboration/human-suggestion-v1.json"
+    ))
+    .unwrap();
+    for mutation in [
+        "version", "paused", "phase", "scope", "deleted", "escape", "text",
+    ] {
+        let mut request = fixture["request"].clone();
+        match mutation {
+            "version" => request["expectedVersion"] = json!(999),
+            "paused" => request["plan"]["paused"] = json!(true),
+            "phase" => request["plan"]["phase"] = json!("checking"),
+            "scope" => request["changes"][0]["target"] = target(),
+            "deleted" => request["changes"][0]["replacement"] = Value::Null,
+            "escape" => {
+                request["changes"][0]["replacement"] = json!("{} int injected() { return 9; }")
+            }
+            "text" => request["changes"][0]["expectedText"] = json!("{ return 999; }"),
+            _ => unreachable!(),
+        }
+        let result = run("collaboration.previewSuggestion", request);
+        assert_eq!(result["ok"], false, "{mutation}: {result}");
+    }
+}
+
+#[test]
 fn inverse_preserves_subsequent_human_changes_in_other_methods() {
     let receipt = prepared();
     let current = receipt["after"][0]["text"]

@@ -1343,6 +1343,7 @@ struct WorkbenchView: View {
                 execute: { model.executeCollaborationStep() },
                 startStep: { model.startCollaborationStep() },
                 handoff: { model.handoffCollaborationStep() },
+                requestSuggestion: { model.requestCollaborationSuggestion($0) },
                 undo: { model.undoCollaborationStep() },
                 rollback: { model.rollbackCollaborationWrite() },
                 runTests: { model.runTest(providerID: "java", scope: .workspace) },

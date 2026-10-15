@@ -2,7 +2,7 @@
   "id": "human-ai-collaboration",
   "area": "AI",
   "group": "人机协作",
-  "capability": "Pi SDK 桌面协作：独立开发/演示供应商、真实工具能力测试、可配置调用预算、只读需求探索、依赖任务组与有界并发、逐次收据和历史回放（全流程开发中）",
+  "capability": "Pi SDK 桌面协作：独立模型与能力测试、调用预算、依赖任务组与并发、人工核心建议的显式接受/拒绝及编辑器撤销、逐次收据和历史回放（全流程开发中）",
   "macos": {
     "evidence": [
       "rust/lithe-core/src/collaboration",
@@ -36,7 +36,12 @@
       "macos/Sources/Lithe/Services/CollaborationPiDiagnostics.swift",
       "macos/Sources/Lithe/Application/Features/CollaborationPiDiagnosticsModel.swift",
       "macos/Sources/Lithe/Views/Collaboration/CollaborationBudgetsView.swift",
-      "macos/Tests/LitheTests/CollaborationModelDiagnosticsTests.swift"
+      "macos/Tests/LitheTests/CollaborationModelDiagnosticsTests.swift",
+      "macos/Sources/Lithe/Application/Features/CollaborationCompletionModel.swift",
+      "macos/Sources/Lithe/Views/Collaboration/CollaborationCompletionView.swift",
+      "macos/Tests/LitheTests/CollaborationCompletionTests.swift",
+      "shared/fixtures/collaboration/human-suggestion-v1.json",
+      "macos/Experiments/Monaco/workbench.integration.ts"
     ],
     "implementationStatus": "partial",
     "verificationStatus": "pending"
@@ -49,5 +54,5 @@
     "verificationStatus": "not-applicable"
   },
   "owner": "Agent",
-  "verification": "cc31e0b5 的 CI 38734911650 原生编译通过，102 项测试中 101 项通过；并发回归的假模型将后台演示调用混入开发拒绝计数，本次按角色限制测试驱动后重跑。SDK 22 项通过；独立模型诊断、预算与配置迁移需本次原生 CI 验证。运行包、完整桌面体验与 Windows 未完成。"
+  "verification": "SDK 22 项与本轮 Rust Core 891 项通过，人工建议的两个 Core 用例各 7 ms。补全前后预览、接受/拒绝、旧文档版本保护及真实 WebKit 撤销回归已编码；编辑器资产编译通过，原生/WebKit 验证待 CI。P3/P4 正在 CI 38737123235 重验。共享契约仍有既存 Windows 浅色文字色不一致，运行包、完整桌面体验与 Windows 未完成。"
 }

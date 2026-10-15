@@ -29,6 +29,7 @@ final class CollaborationFeatureModel: ObservableObject {
     @Published private(set) var activityTitle = "正在处理"
     let presentation = CollaborationPresentationModel()
     let playback: CollaborationPlaybackModel
+    let completion: CollaborationCompletionModel
     let developmentModelDiagnostics: CollaborationPiDiagnosticsModel
     let presentationModelDiagnostics: CollaborationPiDiagnosticsModel
     private let playbackPersistence: CollaborationPlaybackPersistence
@@ -71,6 +72,7 @@ final class CollaborationFeatureModel: ObservableObject {
         self.pi = pi
         self.verifier = verifier
         self.playback = CollaborationPlaybackModel(pi: pi)
+        self.completion = CollaborationCompletionModel(pi: pi, operations: operations)
         self.developmentModelDiagnostics = CollaborationPiDiagnosticsModel(pi: pi)
         self.presentationModelDiagnostics = CollaborationPiDiagnosticsModel(pi: pi)
         self.playbackPersistence = CollaborationPlaybackPersistence(editing: editing)
@@ -216,6 +218,7 @@ final class CollaborationFeatureModel: ObservableObject {
     }
 
     func perform(_ kind: String) {
+        guard completion.state != .applying else { return }
         if kind == "pause", busy {
             cancel()
             // Persist the pause now; invalidation above prevents the in-flight
@@ -237,6 +240,7 @@ final class CollaborationFeatureModel: ObservableObject {
             try persist(workflow: workflow, plan: next, evidence: nextEvidence, facts: recorded)
             facts = recorded
             self.plan = next; evidence = nextEvidence; error = nil
+            completion.reset()
             synchronizePlayback()
             if plan.step?.id != next.step?.id { questionAnswer = "" }
             if kind == "start", let path = next.step?.targets.first?.path { presentation.requestOpen(path) }
@@ -248,7 +252,7 @@ final class CollaborationFeatureModel: ObservableObject {
 
     /// Explicit user discard affects only the plan; source code is never rolled back.
     func discard() {
-        guard !hasPendingWrite else { return }
+        guard !hasPendingWrite, completion.state != .applying else { return }
         cancel()
         do { if let workspaceURL { try editing.saveSession(nil, workspace: workspaceURL) } }
         catch { self.error = error.localizedDescription; return }
@@ -319,12 +323,14 @@ final class CollaborationFeatureModel: ObservableObject {
         cancel()
         await task?.value
         await playback.shutdown()
+        await completion.shutdown()
         await developmentModelDiagnostics.shutdown()
         await presentationModelDiagnostics.shutdown()
         await playbackSaves?.value
     }
 
     func cancel() {
+        completion.reset()
         let pending = task
         generation = UUID(); pending?.cancel(); presentation.cancel()
         let operation = generation

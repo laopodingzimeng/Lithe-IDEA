@@ -111,6 +111,7 @@ protocol CollaborationPlanOperating: Sendable {
     func schedule(_ workflow: CollaborationWorkflow) throws -> CollaborationSchedule
     func transition(_ plan: CollaborationPlan, action: CollaborationAction) throws -> CollaborationPlan
     func prepare(_ plan: CollaborationPlan, files: [CollaborationFile], changes: [CollaborationChange]) throws -> CollaborationReceipt
+    func previewSuggestion(_ plan: CollaborationPlan, files: [CollaborationFile], change: CollaborationChange) throws -> CollaborationReceipt
     func reverse(_ receipt: CollaborationReceipt, files: [CollaborationFile]) throws -> CollaborationReceipt
 }
 
@@ -120,6 +121,7 @@ extension CollaborationPlanOperating {
         return CollaborationSchedule(steps: workflow.steps, groups: [:])
     }
     func prepare(_ plan: CollaborationPlan, files: [CollaborationFile], changes: [CollaborationChange]) throws -> CollaborationReceipt { throw CollaborationFailure.unavailable }
+    func previewSuggestion(_ plan: CollaborationPlan, files: [CollaborationFile], change: CollaborationChange) throws -> CollaborationReceipt { throw CollaborationFailure.unavailable }
     func reverse(_ receipt: CollaborationReceipt, files: [CollaborationFile]) throws -> CollaborationReceipt { throw CollaborationFailure.unavailable }
 }
 

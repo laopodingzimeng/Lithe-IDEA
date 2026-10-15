@@ -1,0 +1,57 @@
+{
+  "request": {
+    "plan": {
+      "id": "human-code",
+      "version": 3,
+      "requirement": "Write the core result",
+      "steps": [
+        {
+          "id": "core",
+          "title": "Write core",
+          "owner": "human",
+          "targets": [
+            {
+              "kind": "javaMethod",
+              "path": "src/Order.java",
+              "typeName": "Order",
+              "signature": "int core()"
+            }
+          ],
+          "acceptance": [
+            "Return the expected value"
+          ],
+          "questions": []
+        }
+      ],
+      "currentStep": 0,
+      "phase": "humanWorking",
+      "paused": false
+    },
+    "expectedVersion": 3,
+    "stepId": "core",
+    "files": [
+      {
+        "path": "src/Order.java",
+        "text": "class Order {\n  int core() { return 1; }\n  String map(int n) { return \"旧\"; }\n}\n"
+      }
+    ],
+    "changes": [
+      {
+        "target": {
+          "kind": "javaMethod",
+          "path": "src/Order.java",
+          "typeName": "Order",
+          "signature": "int core()"
+        },
+        "expectedText": "{ return 1; }",
+        "replacement": "{ return 2; }"
+      }
+    ]
+  },
+  "after": [
+    {
+      "path": "src/Order.java",
+      "text": "class Order {\n  int core() { return 2; }\n  String map(int n) { return \"旧\"; }\n}\n"
+    }
+  ]
+}

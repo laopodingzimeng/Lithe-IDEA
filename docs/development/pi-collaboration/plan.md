@@ -110,7 +110,7 @@
 ### [P5] A 风格工作台与补全
 
 - **内容：** 实时/回放；自动跟随；任务小窗；独立进度；提问；主动补全与接受拒绝
-- **进度：** todo
+- **进度：** doing
 - **结束验收标准：** 用户输入不被抢焦点；核心代码只由接受建议改变；浅暗色可用
 - **交付标准：** 桌面布局、控件、交互与快照测试
 - **会用到的 MCP：** none
@@ -118,7 +118,7 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** 用户已授权全部功能，按已确认方案执行
+- **备注：** 已接入显式建议、接受/拒绝、Core 人工范围预览与编辑器撤销队列；新增过期版本和真实 Monaco 回归，等待目标工具链验证。
 
 ---
 

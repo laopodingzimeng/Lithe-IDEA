@@ -499,6 +499,20 @@ final class MonacoWorkbenchSession: NSObject, ObservableObject, WKNavigationDele
         document.synchronizeEditor = { [self] completion in
             self.synchronize(id: id, completion: completion)
         }
+        document.acceptSuggestedText = { [self, weak document] expected, replacement, completion in
+            guard let document, currentDocument(id) === document, !document.isReadOnly,
+                  document.text == expected else {
+                completion(.failure(EditorDocument.DocumentError.editorNotSynchronized)); return
+            }
+            call("window.lithe.acceptSuggestion(payload)", arguments: ["payload": [
+                "id": id, "expectedText": expected, "text": replacement,
+                "revision": revisions[id] ?? 0, "locationRevision": document.locationRevision
+            ]]) { result in
+                completion(result.flatMap { value in
+                    value as? Bool == true ? .success(()) : .failure(EditorDocument.DocumentError.editorNotSynchronized)
+                })
+            }
+        }
         document.holdEditorForClose = { [self, weak document] completion in
             guard let document else { completion(.failure(EditorDocument.DocumentError.editorNotSynchronized)); return }
             let token = UUID().uuidString
@@ -762,7 +776,7 @@ final class MonacoWorkbenchSession: NSObject, ObservableObject, WKNavigationDele
             documentLocations[oldID] = nil
             documentReadOnlyStates[oldID] = nil
             if let old = documents[oldID], old.editorSynchronizationOwnerID == synchronizationOwnerID {
-                old.synchronizeEditor = nil; old.holdEditorForClose = nil; old.editorSynchronizationOwnerID = nil
+                old.synchronizeEditor = nil; old.holdEditorForClose = nil; old.acceptSuggestedText = nil; old.editorSynchronizationOwnerID = nil
             }
             completionLists[oldID] = nil
             codeActionLists[oldID] = nil

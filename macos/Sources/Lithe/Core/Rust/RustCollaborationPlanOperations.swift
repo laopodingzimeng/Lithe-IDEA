@@ -25,6 +25,20 @@ struct RustCollaborationPlanOperations: CollaborationPlanOperating {
 }
 
 extension RustCollaborationPlanOperations {
+    func previewSuggestion(_ plan: CollaborationPlan, files: [CollaborationFile], change: CollaborationChange) throws -> CollaborationReceipt {
+        struct Payload: Encodable {
+            let plan: CollaborationPlan
+            let expectedVersion: UInt64
+            let stepId: String
+            let files: [CollaborationFile]
+            let changes: [CollaborationChange]
+        }
+        guard let step = plan.step else { throw CollaborationFailure.invalidState }
+        let result: Result<CollaborationReceipt, RustCoreBridge.CoreCallError> = core.executeResult(
+            command: "collaboration.previewSuggestion", payload: Payload(plan: plan, expectedVersion: plan.version,
+                stepId: step.id, files: files, changes: [change]))
+        return try result.get()
+    }
     func prepare(_ plan: CollaborationPlan, files: [CollaborationFile], changes: [CollaborationChange]) throws -> CollaborationReceipt {
         struct Payload: Encodable {
             let plan: CollaborationPlan

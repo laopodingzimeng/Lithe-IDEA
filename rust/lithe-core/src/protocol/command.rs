@@ -36,6 +36,8 @@ pub enum CoreCommand {
     CollaborationTransition,
     /// Validates scoped edits without writing files (`collaboration.prepare`).
     CollaborationPrepare,
+    /// Projects an explicitly requested human-code suggestion (`collaboration.previewSuggestion`).
+    CollaborationPreviewSuggestion,
     /// Prepares a guarded inverse of a trusted receipt (`collaboration.reverse`).
     CollaborationReverse,
     /// Compiles explicit dependencies into conflict-free waves (`collaboration.schedule`).
@@ -368,6 +370,7 @@ impl CoreCommand {
             "ideHost.control" => Some(Self::IdeHostControl),
             "collaboration.transition" => Some(Self::CollaborationTransition),
             "collaboration.prepare" => Some(Self::CollaborationPrepare),
+            "collaboration.previewSuggestion" => Some(Self::CollaborationPreviewSuggestion),
             "collaboration.reverse" => Some(Self::CollaborationReverse),
             "collaboration.schedule" => Some(Self::CollaborationSchedule),
             "agent.status" => Some(Self::AgentStatus),

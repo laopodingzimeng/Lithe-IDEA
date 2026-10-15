@@ -94,6 +94,20 @@ itself returns a preparation and does not write or delete anything.
 
 ## Runtime boundary
 
+`collaboration.previewSuggestion` accepts the same payload as `prepare`, but
+requires the current, unpaused `humanWorking` step and exactly one existing human
+target. Deletion, a stale version, changed source, and method-body escape are
+rejected. It returns the same before/after projection without changing the plan
+or granting AI write permission. The projection is not an applied receipt.
+
+The completion role has no tools. The desktop shows the proposed change, and an
+explicit acceptance rechecks workspace, plan, document identity, location and
+edit revision. The live editor applies it as one undo group and acknowledges its
+native mirror; it stays unsaved until the human saves. Reject, cancel or stale
+results never write. The host must not route a suggestion through the AI journal
+or count it as an AI-produced file write. See `human-suggestion-v1.json` in the
+collaboration fixtures.
+
 A successful preparation is not proof that an arbitrary ACP Agent cannot bypass
 it through shell commands. Executable collaboration must use a provider that
 cannot directly write the source workspace, or a verified isolation boundary

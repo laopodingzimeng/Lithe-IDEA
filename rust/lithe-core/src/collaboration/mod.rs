@@ -24,6 +24,11 @@ pub(crate) fn prepare(value: Value) -> Result<Value, CoreError> {
     encode(edits::prepare(decode(value)?)?)
 }
 
+/// Projects one human-owned suggestion; it never changes the plan or writes files.
+pub(crate) fn preview_suggestion(value: Value) -> Result<Value, CoreError> {
+    encode(edits::preview_suggestion(decode(value)?)?)
+}
+
 /// Reverses a recorded change only while its owned content is still unchanged.
 pub(crate) fn reverse(value: Value) -> Result<Value, CoreError> {
     encode(edits::reverse(decode(value)?)?)

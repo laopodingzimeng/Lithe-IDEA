@@ -36,6 +36,9 @@ final class EditorDocument: ObservableObject, Identifiable, @unchecked Sendable 
     typealias EditorRelease = @MainActor () -> Void
     /// Keeps remote input read-only across an asynchronous close/confirmation flow.
     var holdEditorForClose: ((@escaping (Result<EditorRelease, Error>) -> Void) -> Void)?
+    /// Explicitly accepted suggestions use the editor's undo-aware, revision-checked
+    /// edit queue. The editor reports success only after the native mirror catches up.
+    var acceptSuggestedText: ((String, String, @escaping (Result<Void, Error>) -> Void) -> Void)?
     private var pendingSynchronizedActions: [(Result<Void, Error>) -> Void]?
     private var synchronizationID: UUID?
     private var isPerformingSynchronizedEditorAction = false
