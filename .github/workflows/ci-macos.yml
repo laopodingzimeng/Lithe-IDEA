@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - preview
+      - feat/human-ai-collaboration
   workflow_dispatch:
 
 permissions:
