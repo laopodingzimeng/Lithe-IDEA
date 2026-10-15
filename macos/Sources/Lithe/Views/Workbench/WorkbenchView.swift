@@ -1341,7 +1341,7 @@ struct WorkbenchView: View {
                 openAgent: { model.activateAgentConversation(); model.showToolWindow(.agent) },
                 minimize: { model.workbenchFeature.setVisibility(.collaboration, isVisible: false) })
                 .onAppear { model.collaborationFeature.bind(workspace: model.workspaceURL) }
-                .onChange(of: model.workspaceURL) { _, workspace in model.collaborationFeature.bind(workspace: workspace) }
+                .onChange(of: model.workspaceURL) { workspace in model.collaborationFeature.bind(workspace: workspace) }
         }
         else if let tool, let entry = contribution(for: tool), let renderer = moduleUIRegistry.renderer(for: entry) {
             ModuleToolContent(rendererID: renderer.id, contentIdentity: renderer.contentIdentity(model), content: renderer.content(model)).equatable()
