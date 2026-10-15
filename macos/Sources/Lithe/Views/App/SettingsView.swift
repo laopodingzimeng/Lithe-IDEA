@@ -10,6 +10,7 @@ final class SettingsViewState: ObservableObject {
     @Published var hiddenDirectoriesDraft = ""
     @Published var hiddenFilePatternsDraft = ""
     @Published var aiAPIKeyDraft = ""
+    @Published var savedAIAPIKeyDraft = ""
     /// Provider shown in Settings › AI Providers; independent of the one
     /// commit messages use.
     @Published var editingProviderID: UUID?
@@ -857,7 +858,7 @@ struct SettingsView: View {
                     Text("No AI provider is configured yet.")
                         .foregroundStyle(LitheTheme.secondaryText)
                 } else {
-                    row("Provider") {
+                    row("AI provider") {
                         LitheSettingsSelect(
                             selection: Binding(
                                 get: { editingProvider?.id ?? settings.commitMessageAI.providers[0].id },
@@ -865,7 +866,7 @@ struct SettingsView: View {
                             ),
                             options: settings.commitMessageAI.providers.map(\.id),
                             width: 240,
-                            accessibilityLabel: "Provider",
+                            accessibilityLabel: "AI provider",
                             title: providerTitle
                         )
                     }
@@ -873,6 +874,10 @@ struct SettingsView: View {
                         Text(providerUsage(editingProvider))
                             .font(LitheTheme.smallFont)
                             .foregroundStyle(LitheTheme.secondaryText)
+                        if settings.commitMessageAI.activeProviderID != editingProvider.id {
+                            Button("Use for collaboration and commits") { settings.selectCommitMessageProvider(editingProvider.id) }
+                                .buttonStyle(LitheSecondaryButtonStyle())
+                        }
                     }
 
                     HStack(spacing: 8) {
@@ -893,9 +898,22 @@ struct SettingsView: View {
                 }
 
                 if editingProvider != nil {
-                    TextField("Provider name", text: editingProviderTextBinding(\.name))
-                        .litheSettingsTextField()
-                        .disabled(editingProviderIsConfigurationManaged)
+                    if editingProviderIsConfigurationManaged, let provider = editingProvider {
+                        Text("This profile follows your Codex or Claude configuration. Fetching models and testing are available; create an editable copy to choose a different model in Lithe.")
+                            .foregroundStyle(LitheTheme.secondaryText)
+                        Button("Create editable copy") {
+                            if let id = model.duplicateAIProvider(provider) {
+                                viewState.editingProviderID = id
+                                syncAIProviderDraft()
+                            }
+                        }
+                        .buttonStyle(LitheSecondaryButtonStyle())
+                    }
+                    row("Provider name") {
+                        TextField("Provider name", text: editingProviderTextBinding(\.name))
+                            .litheSettingsTextField()
+                            .disabled(editingProviderIsConfigurationManaged)
+                    }
                     row("API protocol") {
                         LitheSettingsSelect(
                             selection: editingProviderProtocolBinding(),
@@ -906,9 +924,20 @@ struct SettingsView: View {
                         )
                         .disabled(editingProviderIsConfigurationManaged)
                     }
-                    TextField("API URL", text: editingProviderTextBinding(\.endpoint))
-                        .litheSettingsTextField()
-                        .disabled(editingProviderIsConfigurationManaged)
+                    row("API URL") {
+                        TextField("API URL", text: editingProviderTextBinding(\.endpoint))
+                            .litheSettingsTextField()
+                            .disabled(editingProviderIsConfigurationManaged)
+                    }
+                    row("Authentication") {
+                        LitheSettingsSelect(selection: Binding(
+                            get: { editingProvider?.authentication ?? .bearer },
+                            set: { value in
+                                if let id = editingProvider?.id { settings.updateAIProvider(id) { $0.authentication = value } }
+                            }), options: [AIProviderAuthentication.bearer, .apiKey], width: 240,
+                            accessibilityLabel: "Authentication", title: { $0 == .bearer ? "Bearer token" : "API key (x-api-key)" })
+                            .disabled(editingProviderIsConfigurationManaged)
+                    }
                     if editingProvider?.usesInsecureHTTP == true {
                         LitheSettingsCheckbox(
                             isOn: editingProviderBoolBinding(\.allowsInsecureHTTP),
@@ -924,16 +953,20 @@ struct SettingsView: View {
                         .font(LitheTheme.smallFont)
                         .foregroundStyle(LitheTheme.warning)
                     }
-                    TextField("Model", text: editingProviderTextBinding(\.model))
-                        .litheSettingsTextField()
-                        .disabled(editingProviderIsConfigurationManaged)
+                    row("Model") {
+                        TextField("Model", text: editingProviderTextBinding(\.model))
+                            .litheSettingsTextField()
+                            .disabled(editingProviderIsConfigurationManaged)
+                    }
 
                     HStack(spacing: 8) {
                         SecureField("API key or token", text: $viewState.aiAPIKeyDraft)
                             .litheSettingsTextField()
                             .disabled(editingProviderIsConfigurationManaged)
                         Button("Save Key") {
-                            if let editingProvider { model.saveAPIKey(viewState.aiAPIKeyDraft, for: editingProvider) }
+                            if let editingProvider, model.saveAPIKey(viewState.aiAPIKeyDraft, for: editingProvider) {
+                                viewState.savedAIAPIKeyDraft = viewState.aiAPIKeyDraft
+                            }
                         }
                         .buttonStyle(LitheSecondaryButtonStyle())
                         .disabled(editingProviderIsConfigurationManaged)
@@ -950,6 +983,12 @@ struct SettingsView: View {
                         Text(LocalizedStringKey(description))
                             .font(LitheTheme.smallFont)
                             .foregroundStyle(LitheTheme.secondaryText)
+                    }
+                    if let provider = editingProvider {
+                        AIProviderDiagnosticsView(feature: model.aiProviderDiagnostics, provider: provider,
+                            hasUnsavedKey: viewState.aiAPIKeyDraft != viewState.savedAIAPIKeyDraft,
+                            configurationManaged: editingProviderIsConfigurationManaged,
+                            selectModel: { value in settings.updateAIProvider(provider.id) { $0.model = value } })
                     }
                 }
 
@@ -1040,14 +1079,16 @@ struct SettingsView: View {
     /// Which features use `provider`, e.g. "Used by: commit messages, Codex".
     private func providerUsage(_ provider: AIProviderProfile) -> String {
         var users: [String] = []
-        if settings.commitMessageAI.activeProviderID == provider.id { users.append(String(localized: "commit messages")) }
+        if settings.commitMessageAI.activeProviderID == provider.id {
+            users.append(String(localized: "collaboration and commits", locale: settings.language.locale))
+        }
         users += settings.agentConfigurations.values
             .filter { $0.providerID == provider.id }
             .map(\.name)
             .sorted()
         return users.isEmpty
-            ? String(localized: "Not used yet.")
-            : String(format: String(localized: "Used by: %@"), users.joined(separator: ", "))
+            ? String(localized: "Not used yet.", locale: settings.language.locale)
+            : String(format: String(localized: "Used by: %@", locale: settings.language.locale), users.joined(separator: ", "))
     }
 
     private var aiSettings: some View {
@@ -1567,6 +1608,7 @@ struct SettingsView: View {
 
     private func syncAIProviderDraft() {
         viewState.aiAPIKeyDraft = editingProvider.map(model.apiKey(for:)) ?? ""
+        viewState.savedAIAPIKeyDraft = viewState.aiAPIKeyDraft
     }
 
     private func providerTitle(_ id: UUID) -> String {
@@ -1598,7 +1640,10 @@ struct SettingsView: View {
             get: { editingProvider?.apiProtocol ?? .responses },
             set: { value in
                 guard let id = editingProvider?.id else { return }
-                settings.updateAIProvider(id) { provider in provider.apiProtocol = value }
+                settings.updateAIProvider(id) { provider in
+                    provider.apiProtocol = value
+                    provider.authentication = value == .anthropicMessages ? .apiKey : .bearer
+                }
             }
         )
     }

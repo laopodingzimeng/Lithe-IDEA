@@ -2909,3 +2909,36 @@
 "All messages" = "全部消息";
 "Warnings" = "警告";
 "Errors only" = "仅错误";
+
+/* AI provider discovery and connection checks */
+"Authentication" = "认证方式";
+"Bearer token" = "Bearer 令牌";
+"API key (x-api-key)" = "API 密钥（x-api-key）";
+"Fetch models" = "获取模型列表";
+"Test connection" = "测试连接";
+"Available models" = "可用模型";
+"Select a model" = "选择模型";
+"Save the edited key before fetching models or testing." = "请先保存修改后的密钥，再获取模型或测试连接。";
+"%d models available. You can also enter a model manually." = "已获取 %d 个模型，也可手动填写模型名称。";
+"The provider returned no models. Enter a model manually to test it." = "服务商未返回模型，请手动填写模型名称后测试。";
+"Connection successful. The selected model returned a response." = "连接成功，所选模型已实际返回响应。";
+"Testing sends a short message to the selected model and may incur API usage. Project code is not sent." = "测试会向所选模型发送一条简短消息，可能产生 API 用量，不发送项目代码。";
+"Use for collaboration and commits" = "用于协作与提交";
+"collaboration and commits" = "协作与提交";
+"Create editable copy" = "创建可编辑副本";
+"%@ (copy)" = "%@（副本）";
+"This profile follows your Codex or Claude configuration. Fetching models and testing are available; create an editable copy to choose a different model in Lithe." = "此配置跟随本机 Codex 或 Claude。可以获取模型和测试连接；如需在 Lithe 中单独选择模型，请创建可编辑副本。";
+"AI provider diagnostics are unavailable." = "当前无法检查 AI 服务商配置。";
+"Check the API URL and the HTTP permission for this provider." = "请检查 API 地址；使用 HTTP 时需开启此服务商的 HTTP 选项。";
+"Save an API key first. Imported providers read the key from their source configuration." = "请先保存 API 密钥。导入的服务商从来源配置读取密钥，请检查该配置。";
+"Select or enter a model before testing the connection." = "请先选择或填写模型，再测试连接。";
+"This provider does not expose a model list. Enter the model manually, then test the connection." = "此服务商不提供模型列表，请手动填写模型名称后测试连接。";
+"The provider returned an unexpected response. Check the API protocol and URL." = "服务商返回的内容不符合协议，请检查 API 协议和地址。";
+"The model list exceeds the supported size. Enter a model manually." = "模型列表过大，请手动填写模型名称。";
+"Could not reach the provider. Check the API URL and network connection." = "无法连接服务商，请检查 API 地址和网络连接。";
+"The provider did not respond in time. Check the connection and try again." = "服务商响应超时，请检查连接后重试。";
+"Authentication failed (401). Check this provider's key and authentication method; for an imported provider, check its source configuration." = "认证失败（401）。请检查当前服务商的密钥和认证方式；导入配置请检查对应的来源配置。";
+"Access denied (403). Check the account's API and model permissions." = "访问被拒绝（403），请检查账号的 API 和模型权限。";
+"API or model not found (404). Check the URL, protocol and model name." = "API 或模型不存在（404），请检查地址、协议和模型名称。";
+"The provider rejected the request (429). Check the quota or retry later." = "请求被限制（429），请检查额度或稍后重试。";
+"Provider request failed (%d). Check the API protocol and provider status." = "服务商请求失败（%d），请检查 API 协议和服务商状态。";

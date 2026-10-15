@@ -1509,3 +1509,37 @@
 "All messages" = "All messages";
 "Warnings" = "Warnings";
 "Errors only" = "Errors only";
+
+/* AI provider discovery and connection checks */
+"AI provider" = "AI provider";
+"Authentication" = "Authentication";
+"Bearer token" = "Bearer token";
+"API key (x-api-key)" = "API key (x-api-key)";
+"Fetch models" = "Fetch models";
+"Test connection" = "Test connection";
+"Available models" = "Available models";
+"Select a model" = "Select a model";
+"Save the edited key before fetching models or testing." = "Save the edited key before fetching models or testing.";
+"%d models available. You can also enter a model manually." = "%d models available. You can also enter a model manually.";
+"The provider returned no models. Enter a model manually to test it." = "The provider returned no models. Enter a model manually to test it.";
+"Connection successful. The selected model returned a response." = "Connection successful. The selected model returned a response.";
+"Testing sends a short message to the selected model and may incur API usage. Project code is not sent." = "Testing sends a short message to the selected model and may incur API usage. Project code is not sent.";
+"Use for collaboration and commits" = "Use for collaboration and commits";
+"collaboration and commits" = "collaboration and commits";
+"Create editable copy" = "Create editable copy";
+"%@ (copy)" = "%@ (copy)";
+"This profile follows your Codex or Claude configuration. Fetching models and testing are available; create an editable copy to choose a different model in Lithe." = "This profile follows your Codex or Claude configuration. Fetching models and testing are available; create an editable copy to choose a different model in Lithe.";
+"AI provider diagnostics are unavailable." = "AI provider diagnostics are unavailable.";
+"Check the API URL and the HTTP permission for this provider." = "Check the API URL and the HTTP permission for this provider.";
+"Save an API key first. Imported providers read the key from their source configuration." = "Save an API key first. Imported providers read the key from their source configuration.";
+"Select or enter a model before testing the connection." = "Select or enter a model before testing the connection.";
+"This provider does not expose a model list. Enter the model manually, then test the connection." = "This provider does not expose a model list. Enter the model manually, then test the connection.";
+"The provider returned an unexpected response. Check the API protocol and URL." = "The provider returned an unexpected response. Check the API protocol and URL.";
+"The model list exceeds the supported size. Enter a model manually." = "The model list exceeds the supported size. Enter a model manually.";
+"Could not reach the provider. Check the API URL and network connection." = "Could not reach the provider. Check the API URL and network connection.";
+"The provider did not respond in time. Check the connection and try again." = "The provider did not respond in time. Check the connection and try again.";
+"Authentication failed (401). Check this provider's key and authentication method; for an imported provider, check its source configuration." = "Authentication failed (401). Check this provider's key and authentication method; for an imported provider, check its source configuration.";
+"Access denied (403). Check the account's API and model permissions." = "Access denied (403). Check the account's API and model permissions.";
+"API or model not found (404). Check the URL, protocol and model name." = "API or model not found (404). Check the URL, protocol and model name.";
+"The provider rejected the request (429). Check the quota or retry later." = "The provider rejected the request (429). Check the quota or retry later.";
+"Provider request failed (%d). Check the API protocol and provider status." = "Provider request failed (%d). Check the API protocol and provider status.";
