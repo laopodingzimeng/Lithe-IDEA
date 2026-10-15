@@ -339,9 +339,8 @@ CI 在 Windows frontend lane 构建并上传独立包，同时运行包、Worker
 步骤、问题、提示词、分工和验收条件均为数据。新增 Swift 控件或宿主权限仍需要构建。
 完整说明见 `docs/native-collaboration.md`。
 
-独立工作树继续隔离已有 `rust/target/` 和 Swift 编译输出。此功能不增加下载、解压、
-缓存或资源目录；项目会话复用 KeyValueStore 平台偏好存储，不作为 worktree 复用资源。
-`ci-native-collaboration.yml` 只编译测试并运行原生协作测试，不生成 DMG。
+独立工作树继续隔离已有 `rust/target/` 和 Swift 编译输出。此功能不增加下载或解压物；运行时会话与恢复目录见下文，不能作为 worktree 复用资源。
+`ci-native-collaboration.yml` 先编译并验证原生协作测试，成功后才生成 DMG。
 
 协作执行新增 `<Application Support>/Lithe/Collaboration/<workspace-sha256>/pending.json` 与 `session.json`。
 前者从首次写入前保留到状态持久化或显式恢复，后者保存项目计划与修改记录。
