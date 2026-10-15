@@ -44,7 +44,7 @@ actor MacPiRuntimeStore: PiRuntimeManaging {
     private var versionsDirectory: URL { directory.appendingPathComponent("Versions") }
     private var selectionURL: URL { directory.appendingPathComponent("active.json") }
 
-    func updates() -> AsyncStream<PiRuntimeStatus> {
+    func updates() async -> AsyncStream<PiRuntimeStatus> {
         let id = UUID()
         let (stream, continuation) = AsyncStream<PiRuntimeStatus>.makeStream(bufferingPolicy: .bufferingNewest(1))
         observers[id] = continuation

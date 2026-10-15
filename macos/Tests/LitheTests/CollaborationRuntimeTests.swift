@@ -12,7 +12,8 @@ struct CollaborationRuntimeTests {
         let source = try fixture.package("update", version: "1.1.0")
         let queued = try await fixture.store.install(directory: source)
         let id = try #require(queued.pendingID)
-        let stream = await fixture.store.updates()
+        let manager: any PiRuntimeManaging = fixture.store
+        let stream = await manager.updates()
         let switched = TestGate()
         let observer = Task {
             for await state in stream where state.selectedID == id && state.pendingID == nil && state.activeRuns == 0 {
@@ -45,6 +46,7 @@ struct CollaborationRuntimeTests {
         #expect(installed.selectedID != "bundled")
         let lease = try await fixture.store.acquire()
         #expect(lease.directory != source)
+        #expect(lease.directory.lastPathComponent == installed.selectedID)
         #expect(try fixture.contents(lease.directory) == before)
         await fixture.store.release(lease)
         #expect(try fixture.contents(source) == before)
@@ -184,9 +186,15 @@ private struct RuntimeFixture: Sendable {
     }
     func contents(_ directory: URL) throws -> [String: Data] {
         var result: [String: Data] = [:]
-        let iterator = try #require(FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey]))
+        // Foundation may return /private/var for a /var temporary URL. Compare
+        // relative names only after normalizing both sides of the prefix.
+        let root = directory.standardizedFileURL
+        let prefix = root.path + "/"
+        let iterator = try #require(FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey]))
         for case let url as URL in iterator where try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true {
-            result[String(url.path.dropFirst(directory.path.count + 1))] = try Data(contentsOf: url)
+            let path = url.standardizedFileURL.path
+            try #require(path.hasPrefix(prefix))
+            result[String(path.dropFirst(prefix.count))] = try Data(contentsOf: url)
         }
         return result
     }

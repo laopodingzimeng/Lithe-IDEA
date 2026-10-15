@@ -40,11 +40,8 @@ protocol PiRuntimeManaging: Sendable {
     func remove(id: String) async throws -> PiRuntimeStatus
 }
 
-extension PiRuntimeManaging {
-    func updates() async -> AsyncStream<PiRuntimeStatus> { AsyncStream { $0.finish() } }
-}
-
 struct UnavailablePiRuntimeManager: PiRuntimeManaging {
+    func updates() async -> AsyncStream<PiRuntimeStatus> { AsyncStream { $0.finish() } }
     func status() async throws -> PiRuntimeStatus { throw PiAgentFailure.runtimeUnavailable }
     func install(directory: URL) async throws -> PiRuntimeStatus { throw PiAgentFailure.runtimeUnavailable }
     func select(id: String) async throws -> PiRuntimeStatus { throw PiAgentFailure.runtimeUnavailable }
