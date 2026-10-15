@@ -10,15 +10,33 @@ struct MacPiAgentRunner: PiAgentRunning {
     let credentials: any AIProviderCredentialResolver
     var runtimeDirectory: URL? = nil
     var nodeExecutable: URL? = nil
+    var runtimeStore: MacPiRuntimeStore? = nil
+    var sandboxProfile: URL? = nil
 
     func run(_ request: PiAgentRequest,
              onEvent: @escaping @Sendable (PiAgentEvent) async -> Void,
              tool: @escaping @Sendable (PiToolRequest) async throws -> Data) async throws -> String {
         try Task.checkCancellation()
+        if runtimeDirectory == nil, let runtimeStore {
+            guard sandboxProfile != nil else { throw PiAgentFailure.incompatibleRuntime }
+            let lease = try await runtimeStore.acquire()
+            var pinned = self
+            pinned.runtimeDirectory = lease.directory; pinned.runtimeStore = nil
+            do {
+                let result = try await pinned.run(request, onEvent: onEvent, tool: tool)
+                await runtimeStore.release(lease)
+                return result
+            } catch {
+                await runtimeStore.release(lease)
+                throw error
+            }
+        }
         guard let runtime = runtimeDirectory ?? Bundle.main.resourceURL?.appendingPathComponent("PiRuntime"),
               files.fileExists(at: runtime.appendingPathComponent("src/main.mjs")) else { throw PiAgentFailure.runtimeUnavailable }
         let node = (nodeExecutable ?? runtime.appendingPathComponent("bin/node")).resolvingSymlinksInPath()
-        let profile = runtime.appendingPathComponent("platform/macos.sb")
+        // Production policy belongs to the signed host, never an imported
+        // executable package. Tests may supply their fixed fixture profile.
+        let profile = sandboxProfile ?? runtime.appendingPathComponent("platform/macos.sb")
         guard files.fileExists(at: node), files.fileExists(at: profile) else { throw PiAgentFailure.incompatibleRuntime }
         let provider = request.provider
         guard provider.isValid, !provider.usesInsecureHTTP || provider.allowsInsecureHTTP,

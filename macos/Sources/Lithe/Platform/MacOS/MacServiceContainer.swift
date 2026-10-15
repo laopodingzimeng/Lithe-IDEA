@@ -37,6 +37,17 @@ private struct MacDirectoryWatcherFactory: DirectoryWatcherFactory {
 // .agents/notes/implemented/architecture/2026-09-13-module-runtime-boundaries-and-lifecycle.md
 @MainActor
 final class MacServiceContainer {
+    // Every project window must share leases and pending selection. The adapter's
+    // kernel lock additionally protects against a separately launched app process.
+    private static var piRuntimeStores: [URL: MacPiRuntimeStore] = [:]
+    private static func piRuntimeStore(files: any FileStorage) -> MacPiRuntimeStore {
+        let location = files.applicationSupportDirectory().appendingPathComponent("Lithe/Pi/Runtime").standardizedFileURL
+        if let existing = piRuntimeStores[location] { return existing }
+        let store = MacPiRuntimeStore(storageDirectory: location,
+            bundledDirectory: Bundle.main.resourceURL?.appendingPathComponent("PiRuntime/darwin-" + MacPiRuntimeStore.hostArchitecture))
+        piRuntimeStores[location] = store
+        return store
+    }
     let services: AppServices
     let runConfigurationStore: MacRunConfigurationStore
     let moduleLifecycleCoordinator: ModuleLifecycleCoordinator
@@ -129,6 +140,7 @@ final class MacServiceContainer {
             localStore: secureStore,
             configurationSources: aiConfigurationSources
         )
+        let piRuntime = Self.piRuntimeStore(files: fileStorage)
         let ideCapabilityRegistry = IdeCapabilityRegistry()
         let languageExecutionHost = MacLanguageExecutionHost(processRegistry: processRegistry)
         let databaseSidecarURL = MacDatabaseSidecarLocator(fileStorage: fileStorage).executableURL()
@@ -668,7 +680,9 @@ final class MacServiceContainer {
             collaborationGenerator: CollaborationGenerationService(service: CommitMessageGenerationService(
                 transport: MacURLSessionTransport(), credentialResolver: credentialResolver)),
             collaborationWorkspace: MacCollaborationWorkspace(files: fileStorage, documents: fileOperations),
-            piAgent: MacPiAgentRunner(files: fileStorage, credentials: credentialResolver),
+            piAgent: MacPiAgentRunner(files: fileStorage, credentials: credentialResolver, runtimeStore: piRuntime,
+                                     sandboxProfile: Bundle.main.resourceURL?.appendingPathComponent("PiRuntime/macos.sb")),
+            piRuntime: piRuntime,
             collaborationVerifier: MacCollaborationVerifier(files: fileStorage, makeTests: { process in
                 LanguageTestService(catalog: languagePackRegistry.catalog, registry: languagePackRegistry.testProviders,
                     executableResolver: providedRunExecutableResolver ?? RunExecutableResolver(

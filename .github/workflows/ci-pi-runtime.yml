@@ -1,0 +1,50 @@
+name: Build independent Pi runtime
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/pi-dual-model-collaboration]
+    paths:
+      - 'integrations/pi-bridge/**'
+      - 'scripts/*pi-runtime*'
+      - '.github/workflows/ci-pi-runtime.yml'
+permissions:
+  contents: read
+concurrency:
+  group: pi-runtime-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  runtime:
+    runs-on: macos-26
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [arm64, x64]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build the pinned runtime
+        run: |
+          npm ci --prefix integrations/pi-bridge --ignore-scripts --no-audit --no-fund
+          node scripts/build-pi-runtime.mjs --platform darwin --arch '${{ matrix.architecture }}'
+      - name: Verify the packaged runtime without changing its files
+        if: matrix.architecture == 'arm64'
+        env:
+          LITHE_PI_TEST_RUNTIME: ${{ github.workspace }}/.artifacts/pi-runtime/darwin-arm64
+        run: node scripts/test-pi-bridge.mjs
+      - name: Create the independent download
+        run: node scripts/archive-pi-runtime.mjs '.artifacts/pi-runtime/darwin-${{ matrix.architecture }}'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Lithe-Pi-darwin-${{ matrix.architecture }}-${{ github.run_number }}
+          path: .artifacts/pi-packages/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - uses: actions/upload-artifact@v7
+        if: always() && matrix.architecture == 'arm64'
+        with:
+          name: Pi-runtime-validation-${{ github.run_number }}
+          path: .artifacts/test-stability/

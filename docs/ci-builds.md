@@ -158,6 +158,25 @@ Swift 单元、插件和数据库 CI 通道复用已有 Cargo 下载缓存。先
 
 ### 独立工作树的本地编译
 
+Pi 独立运行包用 `node scripts/build-pi-runtime.mjs --platform darwin --arch arm64`
+生成，再用 `node scripts/archive-pi-runtime.mjs .artifacts/pi-runtime/darwin-arm64`
+生成下载 ZIP。`ci-pi-runtime.yml` 独立构建，不触发 IDE 打包。下载后解压并在
+协作面板的“协作运行包”导入含清单的目录；已有任务结束后才切换，可重新选择内置版回退。
+第一次安装此管理入口、原生 UI 或权限变更仍需新的 IDE 安装包。
+
+`.artifacts/pi-downloads/` 只含官方 Node 压缩包。`pi-node` 复用路由以目标工作树
+`integrations/pi-bridge/runtime.json` 的 Node 版本、系统、架构和 SHA-256 校验，不依赖
+宿主 Swift/Bun 工具链。脚本先复制到目标临时目录，校验后原子发布并再次校验；源目录只读。
+未知文件、临时下载、符号链接、超限或哈希不匹配均拒绝，不直接共用缓存目录。
+
+`.artifacts/pi-runtime/`、`.artifacts/pi-packages/` 和 `.pi-build-*` 是当前源码、npm 锁文件、
+平台/架构及签名输入产生的构建输出；清单只能证明包内字节，不能证明与另一工作树源码一致，
+因此 `pi-runtime-state` 在所有复用阶段拒绝它们。每个工作树重新构建，临时目录在结束后清理。
+打包时复制到只读 `Contents/Resources/PiRuntime/`，嵌套签名后重封存哈希，再只签外层 app。
+运行时导入副本、安装暂存和 `active.json` 位于平台 Application Support 的 `Lithe/Pi/Runtime/`；
+它们属于用户和活动任务，不可跨 worktree 共享，也不改变代码签名与 Sparkle 增量基线。
+版本目录保留至显式移除；安装暂存正常退出即清理。完整约定见 [运行包契约](../shared/contracts/pi-runtime.md)。
+
 Pi 受控执行器的依赖在各工作树运行 `npm ci --prefix integrations/pi-bridge --ignore-scripts`。
 `integrations/pi-bridge/node_modules/` 没有封存的复用身份，不跨工作树复制。锁文件固定
 Pi SDK 版本和依赖完整性；Node ABI、系统和架构仍由本次构建负责。

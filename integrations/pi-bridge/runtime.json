@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "protocolVersion": 1,
+  "sdkVersion": "1.2.0",
+  "nodeVersion": "24.1.0",
+  "archives": {
+    "darwin-arm64": { "name": "node-v24.1.0-darwin-arm64.tar.gz", "sha256": "d474192c55b9f54ead37310dfab54431b9ba841fb8abdf8ca800e7a227afc1fb" },
+    "darwin-x64": { "name": "node-v24.1.0-darwin-x64.tar.gz", "sha256": "cdb47a43209c2fa4b6d9ccf7b71e59096448d172d0034aa213284f8931ef0946" },
+    "win32-arm64": { "name": "node-v24.1.0-win-arm64.zip", "sha256": "aa304f30f1420b4ba0067fe18949b67c56a7e88ceb86a7a76dcde24b63a295f3" },
+    "win32-x64": { "name": "node-v24.1.0-win-x64.zip", "sha256": "81d6774f5c1581c7ddd32fb25cf6138f68755dfbb245025d05a249aafa35ea9d" }
+  }
+}

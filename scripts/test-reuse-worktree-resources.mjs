@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { publishDirectory } from "./reuse-worktree-resources.mjs";
+import { publishDirectory, verifyPiDownloads } from "./reuse-worktree-resources.mjs";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const reuseScript = path.join(scriptDirectory, "reuse-worktree-resources.mjs");
@@ -64,6 +64,23 @@ function reuse(extraArguments = []) {
 }
 
 try {
+  await test("Pi Node downloads validate against target pins while runtime state cannot cross worktrees", { timeout: 15000 }, async () => {
+    const directory = path.join(testRoot, "pi-downloads");
+    await fs.mkdir(directory);
+    const archive = path.join(directory, "node-fixture.tar.gz");
+    await fs.writeFile(archive, "");
+    const manifest = path.join(testRoot, "pi-runtime.json");
+    await fs.writeFile(manifest, JSON.stringify({ archives: { "darwin-arm64": { name: "node-fixture.tar.gz", sha256: emptySha256 } } }));
+    await verifyPiDownloads(directory, manifest);
+    await fs.writeFile(archive, "corrupt");
+    await assert.rejects(verifyPiDownloads(directory, manifest), /target-manifest validation/);
+    await fs.rm(archive);
+    await fs.symlink(manifest, archive);
+    await assert.rejects(verifyPiDownloads(directory, manifest), /target-manifest validation/);
+    const refused = reuse(["--resource", "pi-runtime-state"]);
+    assert.notEqual(refused.status, 0);
+    assert.match(diagnostics(refused), /pi-runtime-state.*cannot be reused/);
+  });
   await test("Pi worker state and unsealed dependencies cannot cross worktrees", { timeout: 15000 }, () => {
     const listed = run(process.execPath, [reuseScript, "--list"]);
     assertSucceeded(listed);

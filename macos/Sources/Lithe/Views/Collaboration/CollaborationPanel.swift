@@ -10,6 +10,7 @@ struct CollaborationPanel: View {
     @ObservedObject var presentationDiagnostics: AIProviderDiagnosticsFeatureModel
     let openAISettings: () -> Void
     let importWorkflow: () -> Void
+    let importRuntime: () -> Void
     let openTarget: (String) -> Void
     let generatePlan: () -> Void
     let execute: () -> Void
@@ -83,6 +84,7 @@ struct CollaborationPanel: View {
             CollaborationRoleSelector(role: .presentation, feature: feature, settings: settings, diagnostics: presentationDiagnostics, piDiagnostics: feature.presentationModelDiagnostics)
             LitheSettingsCheckbox(isOn: $feature.modelSettings.narrationEnabled, title: "自动准备讲解，开发独立运行")
             CollaborationBudgetsView(feature: feature)
+            PiRuntimeSettingsView(runtime: feature.runtime, importPackage: importRuntime)
             Text("设置对下一次请求生效；共用账户可能共享服务商限额。")
                 .font(LitheTheme.uiFont(size: 10)).foregroundStyle(LitheTheme.secondaryText)
         }.padding(14).background(LitheTheme.sidebar)

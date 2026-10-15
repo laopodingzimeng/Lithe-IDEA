@@ -110,7 +110,7 @@
 ### [P5] A 风格工作台与补全
 
 - **内容：** 实时/回放；自动跟随；任务小窗；独立进度；提问；主动补全与接受拒绝
-- **进度：** doing
+- **进度：** review
 - **结束验收标准：** 用户输入不被抢焦点；核心代码只由接受建议改变；浅暗色可用
 - **交付标准：** 桌面布局、控件、交互与快照测试
 - **会用到的 MCP：** none
@@ -118,14 +118,14 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** 已接入显式建议、接受/拒绝、Core 人工范围预览与编辑器撤销队列；新增过期版本和真实 Monaco 回归，等待目标工具链验证。
+- **备注：** 5160e744 的 CI 38739425795：111 项原生测试、83 项真实 Monaco 用例通过；b194b537 的 CI 38742190548 已通过历史回放改动。完整桌面视觉与交互验收待 P8。
 
 ---
 
 ### [P6] 运行包更新与只读资源
 
 - **内容：** 可复现构建；受校验运行包安装、版本切换与回滚；资源复用
-- **进度：** todo
+- **进度：** doing
 - **结束验收标准：** 兼容更新不重打 IDE；活动任务固定版本；bundle 清单不变
 - **交付标准：** 构建脚本、资源清单、更新契约、验证
 - **会用到的 MCP：** none
@@ -133,7 +133,7 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** 用户已授权全部功能，按已确认方案执行
+- **备注：** 已实现固定 Node/SDK 构建、独立 ZIP、原生导入/版本固定/回退/损坏修复和跨窗口共享。正在验证包内哈希不变、并发租约、代码签名及资源复用。
 
 ---
 

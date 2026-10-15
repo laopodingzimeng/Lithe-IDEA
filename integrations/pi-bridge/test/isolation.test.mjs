@@ -8,9 +8,11 @@ import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
 import { JSONLines } from '../src/protocol.mjs';
 import { configuration, inbox, providerFixture, textReply } from './fixtures.mjs';
+import { verify, manifestName } from '../../../scripts/pi-runtime-package.mjs';
 
-const root = realpathSync(fileURLToPath(new URL('..', import.meta.url)));
-const node = realpathSync(process.execPath);
+const packaged = process.env.LITHE_PI_TEST_RUNTIME;
+const root = realpathSync(packaged ?? fileURLToPath(new URL('..', import.meta.url)));
+const node = realpathSync(packaged ? path.join(root, 'bin', process.platform === 'win32' ? 'node.exe' : 'node') : process.execPath);
 
 function directories(t) {
   const directory = realpathSync(mkdtempSync(path.join(tmpdir(), 'lithe-pi-test-')));
@@ -45,6 +47,8 @@ test('macOS sandbox denies source writes even in a descendant Node process', { s
 });
 
 test('isolated JSONL worker runs real Pi and exits after acknowledged shutdown', async t => {
+  const before = packaged ? await verify(root, process.platform, process.arch) : undefined;
+  const manifestBefore = packaged ? readFileSync(path.join(root, manifestName)) : undefined;
   const { state } = directories(t);
   const provider = await providerFixture(t, entry => textReply(entry, 'snapshot explanation'));
   const args = ['--permission', `--allow-fs-read=${root}`, `--allow-fs-read=${state}`, `--allow-fs-write=${state}`, path.join(root, 'src/main.mjs')];
@@ -80,4 +84,8 @@ test('isolated JSONL worker runs real Pi and exits after acknowledged shutdown',
   await box.wait(value => value.type === 'closed');
   assert.equal((await exit)[0], 0, diagnostic);
   assert.equal(provider.requests.length, 1);
+  if (packaged) {
+    assert.deepEqual(await verify(root, process.platform, process.arch), before, 'Runtime workflow must not change the distribution inventory');
+    assert.deepEqual(readFileSync(path.join(root, manifestName)), manifestBefore, 'Runtime manifest bytes remain unchanged');
+  }
 });

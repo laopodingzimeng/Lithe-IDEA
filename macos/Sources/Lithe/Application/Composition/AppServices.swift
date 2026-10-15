@@ -63,6 +63,7 @@ final class AppServices {
     let collaborationWorkspace: any CollaborationWorkspaceEditing
     let collaborationPlans: any CollaborationPlanOperating
     let piAgent: any PiAgentRunning
+    let piRuntime: any PiRuntimeManaging
     let collaborationVerifier: any CollaborationVerifying
     let platformUI: any PlatformUI
     let shortcutDetectorFactory: any ShortcutDetectorFactory
@@ -112,6 +113,7 @@ final class AppServices {
         collaborationGenerator: any CollaborationGenerating = UnavailableCollaborationGenerator(),
         collaborationWorkspace: any CollaborationWorkspaceEditing = UnavailableCollaborationWorkspace(),
         piAgent: any PiAgentRunning = UnavailablePiAgentRunner(),
+        piRuntime: any PiRuntimeManaging = UnavailablePiRuntimeManager(),
         collaborationVerifier: any CollaborationVerifying = UnavailableCollaborationVerifier(),
         aiProviderDiagnostics: any AIProviderDiagnosing = UnavailableAIProviderDiagnostics()
     ) {
@@ -167,6 +169,7 @@ final class AppServices {
         self.collaborationGenerator = collaborationGenerator
         self.collaborationWorkspace = collaborationWorkspace
         self.piAgent = piAgent
+        self.piRuntime = piRuntime
         self.collaborationVerifier = collaborationVerifier
         self.platformUI = platformUI
         self.shortcutDetectorFactory = shortcutDetectorFactory

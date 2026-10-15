@@ -6,6 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { sha256 } from "./pi-runtime-package.mjs";
 
 const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
 const REGISTRY_PATH = path.join(SCRIPT_DIRECTORY, "worktree-resources.json");
@@ -62,7 +63,7 @@ async function readRegistry() {
     throw new Error(`Unsupported worktree resource registry: ${REGISTRY_PATH}`);
   }
   const identifiers = new Set();
-  const validators = new Set(["cargo", "swiftpm", "bun", "jdtls", "jdk"]);
+  const validators = new Set(["cargo", "swiftpm", "bun", "jdtls", "jdk", "pi-node"]);
   for (const resource of registry.resources) {
     if (!resource?.id || identifiers.has(resource.id)) throw new Error(`Duplicate or missing resource id: ${resource?.id ?? "<missing>"}`);
     if (!validators.has(resource.validator)) throw new Error(`Unknown validator for ${resource.id}: ${resource.validator}`);
@@ -188,6 +189,9 @@ async function validatorArguments(resource, cachePath, targetRoot) {
 }
 
 async function verifyResource(resource, cachePath, targetRoot) {
+  if (resource.validator === "pi-node") {
+    return verifyPiDownloads(cachePath, await requiredFile(targetRoot, "integrations/pi-bridge/runtime.json", resource.id));
+  }
   const argumentsList = await validatorArguments(resource, cachePath, targetRoot);
   const result = spawnSync(process.execPath, [VERIFIER_PATH, ...argumentsList], {
     cwd: targetRoot,
@@ -200,6 +204,22 @@ async function verifyResource(resource, cachePath, targetRoot) {
   if (result.stderr) process.stderr.write(result.stderr);
   if (result.status !== 0) {
     throw new Error(`Validation failed for ${resource.id}: ${result.error || `exit ${result.status}`}`);
+  }
+}
+
+export async function verifyPiDownloads(cachePath, manifestPath) {
+  // Downloads alone are transferable. Sealed app runtimes additionally depend
+  // on current bridge sources, dependency installation and platform signing.
+  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+  const expected = new Map(Object.values(manifest.archives ?? {}).map(archive => [archive.name, archive.sha256]));
+  const names = await fs.readdir(cachePath);
+  if (names.length > 16) throw new Error("Pi Node cache exceeds its archive limit");
+  for (const name of names) {
+    const file = path.join(cachePath, name), stat = await fs.lstat(file), digest = expected.get(name);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 128 * 1024 * 1024 ||
+        !/^[0-9a-f]{64}$/.test(digest ?? "") || await sha256(file) !== digest) {
+      throw new Error(`Pi Node download failed target-manifest validation: ${name}`);
+    }
   }
 }
 

@@ -21,6 +21,14 @@ case "$ARCH" in
 esac
 
 cd "$ROOT_DIR"
+# Runtime inputs are built before the app, copied read-only, then sealed again
+# after nested code signing. Runtime installs never write into these directories.
+pi_architectures=(arm64 x64)
+if [[ "$ARCH" == "arm64" ]]; then pi_architectures=(arm64); fi
+if [[ "$ARCH" == "x86_64" ]]; then pi_architectures=(x64); fi
+for pi_arch in "${pi_architectures[@]}"; do
+    node scripts/build-pi-runtime.mjs --platform darwin --arch "$pi_arch" > /dev/null
+done
 # Java Support assembles JDT LS and its JDK into its own plugin package later
 # in this script. They are prepared here first so a missing or invalid
 # download fails before the application is compiled.
@@ -154,6 +162,19 @@ cp -R "$ROOT_DIR/macos/Resources/Fonts" "$APP_DIR/Contents/Resources/Fonts"
 cp -R "$ROOT_DIR/.artifacts/editor/macos" "$APP_DIR/Contents/Resources/MonacoEditor"
 zsh "$ROOT_DIR/scripts/package-macos-localizations.sh" \
     "$ROOT_DIR/macos/Resources" "$APP_DIR/Contents/Resources"
+mkdir -p "$APP_DIR/Contents/Resources/PiRuntime"
+cp "$ROOT_DIR/integrations/pi-bridge/platform/macos.sb" "$APP_DIR/Contents/Resources/PiRuntime/macos.sb"
+for pi_arch in "${pi_architectures[@]}"; do
+    cp -R "$ROOT_DIR/.artifacts/pi-runtime/darwin-$pi_arch" "$APP_DIR/Contents/Resources/PiRuntime/darwin-$pi_arch"
+done
 codesign --force --deep --sign "$SIGNING_IDENTITY" "$APP_DIR"
+# Signing can change the Node executable. Refresh hashes in build staging only,
+# then sign the outer resource envelope without touching nested binaries again.
+for pi_arch in "${pi_architectures[@]}"; do
+    node scripts/build-pi-runtime.mjs --platform darwin --arch "$pi_arch" \
+        --reseal --output "$APP_DIR/Contents/Resources/PiRuntime/darwin-$pi_arch" > /dev/null
+done
+codesign --force --sign "$SIGNING_IDENTITY" "$APP_DIR"
+codesign --verify --deep --strict "$APP_DIR"
 
 echo "$APP_DIR"

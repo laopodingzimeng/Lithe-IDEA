@@ -30,6 +30,7 @@ final class CollaborationFeatureModel: ObservableObject {
     let presentation = CollaborationPresentationModel()
     let playback: CollaborationPlaybackModel
     let completion: CollaborationCompletionModel
+    let runtime: PiRuntimeFeatureModel
     let developmentModelDiagnostics: CollaborationPiDiagnosticsModel
     let presentationModelDiagnostics: CollaborationPiDiagnosticsModel
     private let playbackPersistence: CollaborationPlaybackPersistence
@@ -66,6 +67,7 @@ final class CollaborationFeatureModel: ObservableObject {
          generator: any CollaborationGenerating = UnavailableCollaborationGenerator(),
          editing: any CollaborationWorkspaceEditing = UnavailableCollaborationWorkspace(),
          pi: any PiAgentRunning = UnavailablePiAgentRunner(),
+         piRuntime: any PiRuntimeManaging = UnavailablePiRuntimeManager(),
          verifier: any CollaborationVerifying = UnavailableCollaborationVerifier()) {
         self.generator = generator
         self.editing = editing
@@ -73,6 +75,7 @@ final class CollaborationFeatureModel: ObservableObject {
         self.verifier = verifier
         self.playback = CollaborationPlaybackModel(pi: pi)
         self.completion = CollaborationCompletionModel(pi: pi, operations: operations)
+        self.runtime = PiRuntimeFeatureModel(service: piRuntime)
         self.developmentModelDiagnostics = CollaborationPiDiagnosticsModel(pi: pi)
         self.presentationModelDiagnostics = CollaborationPiDiagnosticsModel(pi: pi)
         self.playbackPersistence = CollaborationPlaybackPersistence(editing: editing)
@@ -324,6 +327,7 @@ final class CollaborationFeatureModel: ObservableObject {
         await task?.value
         await playback.shutdown()
         await completion.shutdown()
+        await runtime.shutdown()
         await developmentModelDiagnostics.shutdown()
         await presentationModelDiagnostics.shutdown()
         await playbackSaves?.value

@@ -61,6 +61,18 @@ write 工具会越过人工核心代码的授权范围，且同一步多次写�
   独立撤销组进入原有输入确认队列。精确换行由已有源文本镜像保留；用户继续打字、重命名或更换计划后，
   旧建议失效。接受只修改未保存缓冲区，保存与交接仍由用户操作，不伪造 AI 写盘收据。
   建议和基线只在内存中存活，拒绝、工作区切换与退出清理，不新增运行时目录或修改发行包。
+- 兼容运行包通过独立构建与本地显式导入更新；清单固定协议、系统、架构、Node、SDK 和每个文件哈希。
+  文件哈希用于识别用户已接受的字节，不代表发布者签名，界面明确标注“本机导入”。现有官方插件格式
+  服务于声明式插件，不冒用其官方身份封装可执行 SDK。自动远程安装需要另行建立可信发布者验证。
+- 导入先复制到平台 Application Support 的暂存目录，完整校验后发布到以清单哈希命名的版本目录。
+  所有窗口共享同一管理器；活动会话持有版本租约（任务结束前固定运行包），切换等待全部租约退出。
+  非阻塞系统文件锁同时防止第二个应用进程替换仍在使用的版本。取消也要完成释放与待切换校验。
+  活动选择原子落盘，等待中的选择只在内存，崩溃后继续使用最后已提交版本。
+  损坏副本保留可见并禁止运行，无活动租约时可重新导入修复；启动持有锁后清理遗留暂存。
+- 运行包和状态只写 `Lithe/Pi/Runtime`，内置版本永远只读。macOS 包含架构独立的 Node 和完整 Pi SDK，
+  打包期间先签嵌套代码、再封存修改后的 Node 哈希，最后只签外层 app。不得运行时重新封存或修补 bundle。
+  操作系统隔离策略由已签名宿主持有，不能被导入包中的策略替换；修改宿主界面、工具权限或协议仍须重打 IDE。
+  可跨工作树复用的仅是按目标固定 SHA-256 校验的官方 Node 下载；运行包缺少当前源码/签名输入身份，重新构建。
 
 正确做法：Pi 请求修改映射方法，宿主检查原文后写入并返回真实收据，再允许下一次请求。
 不要让 Pi 返回的“已完成”替代收据，也不要把模型发出的 shell 命令交给终端执行。
@@ -72,12 +84,15 @@ write 工具会越过人工核心代码的授权范围，且同一步多次写�
 - 为依赖图重写整个编辑状态机：会让权限与恢复拥有两套规则，采用 Core 确定性分组和现有验收状态机。
 - 仅使用 Node permission：可以限制 JavaScript API，但不能当作操作系统隔离证据。
 - 单步只保留最后一份收据：无法逐次撤销和定位中途失败，采用逐工具持久化。
+- 在插件清单中伪装官方 Pi 插件：现有格式和信任根不适合此可执行容器，采用独立显式导入，记录信任边界。
+- 每个项目窗口各自管理版本：一个窗口可能删除另一窗口正在用的引擎，采用进程共享管理器与跨进程文件锁。
 
 ## 后果
 
 多轮探索与修改有真实工具结果，演示模型可以独立运行。代价是要维护薄协议、平台隔离和进程预算，
 且 OS 隔离需要在目标系统验证。Windows 不能照搬 macOS sandbox，也不能把 Job Object 误当文件隔离。
-完整 UI、独立运行包更新和验证任务执行属于后续交付步骤，不由此基础边界的测试结果代替。
+独立运行包可以减少兼容 SDK/工具循环更新的打包次数，但不支持免安装改原生控件或宿主权限。
+完整桌面流程和 Windows 适配仍须独立验收，不能由此基础边界的测试结果代替。
 
 ## 验证
 
@@ -91,11 +106,15 @@ write 工具会越过人工核心代码的授权范围，且同一步多次写�
 - `scripts/verify-service-boundaries.sh`：原生层间职责。
 - `scripts/verify-runtime-bundle-immutability.sh`：发行资源只读边界。
 - `node scripts/test-reuse-worktree-resources.mjs`：拒绝复制 Pi 状态和未封存依赖。
+- `scripts/test-macos.sh --filter CollaborationRuntimeTests`：导入不改源包/内置包、租约固定、持久化回退、损坏修复和第二实例互斥。
+- `node scripts/build-pi-runtime.mjs --platform darwin --arch arm64`：固定来源构建；打包 SDK 测试以 `LITHE_PI_TEST_RUNTIME` 指向该输出，前后全清单不变。
 
 ## 适用范围
 
 - `integrations/pi-bridge/`
 - `shared/contracts/pi-bridge.md`
+- `shared/contracts/pi-runtime.md`
+- `macos/Sources/Lithe/Platform/MacOS/Collaboration/MacPiRuntimeStore.swift`
 - `macos/Sources/Lithe/Core/Ports/PiAgent.swift`
 - `macos/Sources/Lithe/Platform/MacOS/Collaboration/MacPiAgentRunner.swift`
 - `macos/Sources/Lithe/Application/Features/CollaborationFeatureModel.swift`

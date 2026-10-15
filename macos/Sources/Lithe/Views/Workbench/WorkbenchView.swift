@@ -1338,6 +1338,11 @@ struct WorkbenchView: View {
                     model.showSettings(category: .providers)
                 },
                 importWorkflow: { model.importCollaborationWorkflow() },
+                importRuntime: {
+                    if let directory = model.platformUI.chooseDirectory(title: "导入 Pi 运行包", prompt: "导入") {
+                        model.collaborationFeature.runtime.install(directory)
+                    }
+                },
                 openTarget: { model.openCollaborationTarget($0) },
                 generatePlan: { model.generateCollaborationPlan() },
                 execute: { model.executeCollaborationStep() },

@@ -2,6 +2,11 @@
   "schemaVersion": 1,
   "resources": [
     {
+      "id": "pi-node",
+      "path": ".artifacts/pi-downloads",
+      "validator": "pi-node"
+    },
+    {
       "id": "cargo",
       "path": ".artifacts/cargo-home/registry/cache",
       "validator": "cargo"
@@ -28,6 +33,13 @@
     }
   ],
   "excludedResources": [
+    {
+      "id": "pi-runtime-state",
+      "reusable": false,
+      "locations": [".artifacts/pi-runtime/", ".artifacts/pi-packages/", ".artifacts/**/.pi-build-*/", "<Application Support>/Lithe/Pi/Runtime/", "<app>/Contents/Resources/PiRuntime/"],
+      "identity": "A runtime manifest pins protocol, SDK, Node, platform, architecture and payload hashes, but does not prove that current bridge sources or signing inputs match the target worktree; active.json and leases are user/session-owned",
+      "reason": "Build runtimes and archives afresh from runtime.json, package-lock.json and the target checkout. No stage copies these resources across worktrees. Build staging is removed after validation/publication; installed Versions remain until explicit removal and active.json changes atomically. The bundled baseline is read-only and never an install target. Only checksum-verified upstream Node downloads use the pi-node reuse route."
+    },
     {
       "id": "pi-worker-state",
       "reusable": false,
