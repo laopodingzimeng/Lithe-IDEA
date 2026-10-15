@@ -330,3 +330,22 @@ Windows PHP Worker 插件使用 `bun scripts/build-windows-php-plugin.ts` 单独
 在资源清单中注册为不可复用；不随 Windows 应用构建复制。用户导入后的源码与状态
 位于 WebView 用户配置的 `lithe.worker-package:<id>`，也禁止跨 worktree 复用。
 CI 在 Windows frontend lane 构建并上传独立包，同时运行包、Worker 协议和生命周期测试。
+
+### 桌面协作工作流的独立迭代
+
+原生宿主首次升级需要构建 Lithe。升级后在菜单“协作 → 导入工作流…”导入
+`shared/fixtures/collaboration/*.workflow.json`，工作流变化无需重新构建 IDE。
+修改文件后，完成或清除旧计划，再点击“重新加载工作流文件”；重启后可重新导入文件。
+步骤、问题、提示词、分工和验收条件均为数据。新增 Swift 控件或宿主权限仍需要构建。
+完整说明见 `docs/native-collaboration.md`。
+
+独立工作树继续隔离已有 `rust/target/` 和 Swift 编译输出。此功能不增加下载、解压、
+缓存或资源目录；项目会话复用 KeyValueStore 平台偏好存储，不作为 worktree 复用资源。
+`ci-native-collaboration.yml` 只编译测试并运行原生协作测试，不生成 DMG。
+
+协作执行新增 `<Application Support>/Lithe/Collaboration/<workspace-sha256>/pending.json` 与 `session.json`。
+前者从首次写入前保留到状态持久化或显式恢复，后者保存项目计划与修改记录。
+两个文件及 `collaboration.library.v1` 偏好都是用户状态，不具有源码/平台/工具链复用身份，
+以 `collaboration-runtime-state` 在资源清单排除，任何 worktree 阶段都不能复制。
+新 workflow `ci-native-collaboration.yml` 在功能分支推送时先编译并验证原生测试，再生成 arm64 DMG；
+后续仅工作流数据更新不需要再次构建。完整宿主升级仍需要 CI 编译。

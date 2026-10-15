@@ -1,0 +1,69 @@
+name: Build native collaboration macOS
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/extensible-collaboration-workbench]
+permissions:
+  contents: read
+concurrency:
+  group: native-collaboration-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      LITHE_ARCH: arm64
+      LITHE_BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: frontend/editor/package.json
+      - uses: ./.github/actions/setup-macos-toolchain
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - uses: ./.github/actions/prepare-macos-dependency-cache
+        with:
+          swiftpm: 'true'
+          cargo: 'true'
+          cargo-build: 'true'
+          cargo-build-architecture: arm64
+          jdtls: 'true'
+          jdk: 'true'
+          jdk-architecture: arm64
+      - name: Verify native boundaries
+        run: |
+          ./scripts/verify-service-boundaries.sh
+          ./scripts/verify-runtime-bundle-immutability.sh
+          ./scripts/verify-platform-feature-matrix.sh
+      - name: Build native tests
+        timeout-minutes: 25
+        run: ./scripts/test-macos.sh list > /dev/null
+      - name: Test collaboration before packaging
+        timeout-minutes: 8
+        run: ./.agents/skills/write-stable-tests/scripts/test-stability-macos.sh --report .artifacts/test-stability/native-collaboration.json -- --skip-build --filter 'Collaboration|CommitMessageGeneration'
+      - name: Package desktop application
+        run: |
+          ./scripts/package-app.sh
+          ./scripts/create-dmg.sh
+          codesign --verify --deep --strict dist/Lithe-arm64.app
+          for dmg in dist/*.dmg; do
+            hdiutil imageinfo "$dmg" > /dev/null
+            shasum -a 256 "$dmg" > "$dmg.sha256"
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Lithe-collaboration-macos-arm64-${{ github.run_number }}
+          path: |
+            dist/*.dmg
+            dist/*.dmg.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: native-collaboration-tests-${{ github.run_number }}
+          path: .artifacts/test-stability/

@@ -185,6 +185,18 @@
       "locations": ["<system-temp>/lithe-codex-retry-<UUID>/"],
       "identity": "First-party embedded source from the current host revision and one Agent launch's native executable/retry budget. Platform chooses the system temporary directory; no reusable version, architecture, toolchain or publication identity stamp.",
       "reason": "The Agent process owner creates the helper before spawn and removes it on preparation failure, cancellation, launch failure or after stopping the process tree. It contains no credentials. Never copy or share it at any worktree stage; installed adapters, user CLI/configuration and signed bundles stay read-only."
+    },
+    {
+      "id": "collaboration-runtime-state",
+      "reusable": false,
+      "locations": [
+        "<Application Support>/Lithe/Collaboration/<workspace-sha256>/pending.json",
+        "<Application Support>/Lithe/Collaboration/<workspace-sha256>/session.json",
+        "<platform-preferences>/collaboration.native.v1.*",
+        "<platform-preferences>/collaboration.library.v1"
+      ],
+      "identity": "Workspace identity and current plan transaction with file contents; mutable user state without a reusable source/platform/toolchain stamp.",
+      "reason": "Native adapter writes pending intent before any source changes and removes it only after durable session recording or explicit guarded recovery. Never copy across worktrees or place in signed bundles. Preferences retain installed data packages and per-project receipts until user removal."
     }
   ]
 }

@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "id": "spring-order",
+  "title": "Spring Boot · 新功能",
+  "requirement": "新增订单计算：配套代码由 AI 完成，金额计算与边界规则由你实现。",
+  "steps": [
+    {
+      "id": "mapping",
+      "title": "准备对象映射",
+      "owner": "ai",
+      "targets": [
+        {
+          "kind": "javaMethod",
+          "path": "src/OrderService.java",
+          "typeName": "OrderService",
+          "signature": "String map(int quantity)"
+        }
+      ],
+      "acceptance": [
+        "只修改 map 方法体",
+        "保持核心计算方法不变"
+      ],
+      "questions": [],
+      "decisions": []
+    },
+    {
+      "id": "business",
+      "title": "实现订单计算规则",
+      "owner": "human",
+      "targets": [
+        {
+          "kind": "javaMethod",
+          "path": "src/OrderService.java",
+          "typeName": "OrderService",
+          "signature": "int calculateTotal(int price, int quantity)"
+        }
+      ],
+      "acceptance": [
+        "拒绝负数价格和数量",
+        "返回 price * quantity"
+      ],
+      "questions": [
+        "负数输入应该如何处理？"
+      ],
+      "decisions": []
+    },
+    {
+      "id": "dto",
+      "title": "补齐请求对象",
+      "owner": "ai",
+      "targets": [
+        {
+          "kind": "file",
+          "path": "src/OrderRequest.java"
+        }
+      ],
+      "acceptance": [
+        "创建独立请求对象",
+        "保留已有业务实现"
+      ],
+      "questions": [],
+      "decisions": []
+    }
+  ],
+  "version": "1.0.0",
+  "prompts": {
+    "mapping": "请先列出涉及的接口与配套改动，遵守本步分工；不确定的业务规则交由开发者决定。",
+    "business": "请先列出涉及的接口与配套改动，遵守本步分工；不确定的业务规则交由开发者决定。",
+    "dto": "请先列出涉及的接口与配套改动，遵守本步分工；不确定的业务规则交由开发者决定。"
+  }
+}

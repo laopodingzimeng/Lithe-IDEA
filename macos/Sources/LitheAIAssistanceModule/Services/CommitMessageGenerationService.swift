@@ -74,6 +74,15 @@ public struct CommitMessageGenerationService: Sendable {
         )
     }
 
+    /// Tool-free text generation shared by native workflows. This transport never
+    /// grants a model filesystem, process, or Agent tool access.
+    public func generateWorkflowText(system: String, prompt: String, settings: CommitMessageAISettings) async throws -> String {
+        let result = try await generateRaw(systemPrompt: system, userPrompt: prompt,
+            settings: settings, maximumOutputTokens: 8192)
+        guard result.utf8.count <= 1_048_576 else { throw CommitMessageGenerationError.emptyResponse }
+        return result
+    }
+
     private func generateRaw(
         systemPrompt: String,
         userPrompt: String,
