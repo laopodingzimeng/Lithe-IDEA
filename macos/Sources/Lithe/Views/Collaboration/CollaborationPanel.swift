@@ -12,6 +12,8 @@ struct CollaborationPanel: View {
     let openTarget: (String) -> Void
     let generatePlan: () -> Void
     let execute: () -> Void
+    let startStep: () -> Void
+    let handoff: () -> Void
     let undo: () -> Void
     let rollback: () -> Void
     let runTests: () -> Void
@@ -129,9 +131,9 @@ struct CollaborationPanel: View {
             .overlay(RoundedRectangle(cornerRadius: LitheTheme.Metrics.controlCornerRadius).strokeBorder(LitheTheme.panelBorder))
             .disabled(locked)
             .accessibilityIdentifier("collaboration-requirement")
-            LitheSettingsCheckbox(isOn: $feature.includeEditorContext, title: "附带已打开的项目代码").disabled(locked)
+            LitheSettingsCheckbox(isOn: $feature.includeEditorContext, title: "自动定位并读取相关项目代码").disabled(locked)
             hint(feature.includeEditorContext
-                 ? "最多 8 个文件，总计 24,000 字符。只发送已打开的项目代码。"
+                 ? "使用项目目录定位文件，代码总计最多 24,000 字符。排除隐藏文件与密钥文件。"
                  : "本次只分析需求。生成后补充文件范围，再开始执行。")
             hint("协作使用模型默认思考设置。")
             if feature.workspaceURL == nil { hint("先打开项目，再开始协作。") }
@@ -176,6 +178,10 @@ struct CollaborationPanel: View {
                         Text(step.owner == .human ? "你来实现 · 核心逻辑" : "AI 配套")
                             .font(LitheTheme.uiFont(size: 10))
                             .foregroundStyle(step.owner == .human ? LitheTheme.warning : LitheTheme.accent)
+                        if let paths = feature.workflow?.independentFiles?[step.id], paths.count > 1 {
+                            Text("\(paths.count) 个独立文件 · 并行生成后统一写入")
+                                .font(LitheTheme.uiFont(size: 10)).foregroundStyle(LitheTheme.secondaryText)
+                        }
                         if let target = step.targets.first {
                             Text(target.path).font(LitheTheme.uiFont(size: 10, design: .monospaced))
                                 .foregroundStyle(LitheTheme.secondaryText).lineLimit(2)
@@ -255,14 +261,15 @@ struct CollaborationPanel: View {
 
     private var actionFooter: some View {
         VStack(alignment: .leading, spacing: 9) {
+            if feature.plan != nil { questionComposer }
             if feature.busy {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
                     Text(feature.activityTitle).font(LitheTheme.uiFont(size: 11))
                     Spacer(minLength: 0)
-                    Button("取消") { feature.cancel() }.buttonStyle(.plain).foregroundStyle(LitheTheme.accent)
+                    Button("我来写") { feature.takeOver() }.buttonStyle(.plain).foregroundStyle(LitheTheme.accent)
                 }
-                hint("等待当前模型返回；分析与生成最多 180 秒。")
+                hint("草稿实时展示在编辑器下方；每个模型请求最多 180 秒。")
             } else if !feature.hasPendingWrite {
                 primaryAction
                 if let plan = feature.plan, !plan.paused, plan.phase != .complete {
@@ -284,9 +291,9 @@ struct CollaborationPanel: View {
                     if plan.step?.questions.isEmpty == false {
                         primary("确认本步规则") { feature.perform("resolveQuestions") }
                     } else {
-                        primary(plan.step?.owner == .human ? "开始编写核心逻辑" : "开始配套步骤") { feature.perform("start") }
+                        primary(plan.step?.owner == .human ? "开始编写核心逻辑" : "开始配套步骤", action: startStep)
                     }
-                case .humanWorking: primary("已保存，交接并检查") { feature.perform("handoff") }
+                case .humanWorking: primary("已保存，交接并检查", action: handoff)
                 case .aiWorking: primary("生成配套代码", enabled: canRequest, action: execute)
                 case .checking: primary("AI 分析我的实现", enabled: canRequest, action: execute)
                 case .review: primary("验收通过，继续") { feature.perform("accept") }
@@ -297,6 +304,25 @@ struct CollaborationPanel: View {
             primary(feature.error == nil ? "分析需求，生成计划" : "重新分析需求",
                     enabled: canRequest && feature.workspaceURL != nil && !feature.requirementText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                     action: generatePlan)
+        }
+    }
+
+    private var questionComposer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !feature.questionAnswer.isEmpty {
+                DisclosureGroup("当前步骤的解释") {
+                    ScrollView { Text(feature.questionAnswer).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
+                        .frame(maxHeight: 140).litheScrollViewChrome()
+                }.font(LitheTheme.uiFont(size: 11))
+            }
+            HStack(spacing: 8) {
+                TextField("对这一步有疑问，直接问…", text: $feature.questionText)
+                    .litheSettingsTextField()
+                    .onSubmit { if !locked && canRequest { feature.ask(settings: settings.commitMessageAI) } }
+                Button("提问") { feature.ask(settings: settings.commitMessageAI) }
+                    .buttonStyle(LitheSecondaryButtonStyle(horizontalPadding: 9, height: 28, fontSize: 11))
+                    .disabled(locked || !canRequest || feature.questionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
         }
     }
 

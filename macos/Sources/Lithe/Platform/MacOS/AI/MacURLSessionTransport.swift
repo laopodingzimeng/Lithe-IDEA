@@ -26,6 +26,22 @@ struct MacURLSessionTransport: AIHTTPTransport {
             configuration.timeoutIntervalForResource = request.timeout
             let session = URLSession(configuration: configuration)
             defer { session.invalidateAndCancel() }
+            if let onBody = request.onBody {
+                let (bytes, response) = try await session.bytes(for: urlRequest, delegate: AIHTTPRedirectPolicy())
+                guard let http = response as? HTTPURLResponse else { throw AIHTTPTransportError.invalidResponse }
+                var body = Data(), fragment = Data()
+                for try await byte in bytes {
+                    try Task.checkCancellation()
+                    body.append(byte); fragment.append(byte)
+                    guard body.count <= 4 * 1_048_576 else { throw AIHTTPTransportError.invalidResponse }
+                    if fragment.count >= 4096 || byte == 10 {
+                        if (200..<300).contains(http.statusCode) { onBody(fragment) }
+                        fragment.removeAll(keepingCapacity: true)
+                    }
+                }
+                if !fragment.isEmpty, (200..<300).contains(http.statusCode) { onBody(fragment) }
+                return AIHTTPResponse(statusCode: http.statusCode, body: body)
+            }
             let (data, response) = try await session.data(for: urlRequest, delegate: AIHTTPRedirectPolicy())
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw AIHTTPTransportError.invalidResponse
@@ -64,6 +80,7 @@ private final class MacPlainHTTPConnection: @unchecked Sendable {
     private let requestData: Data
     private let lock = NSLock()
     private var responseData = Data()
+    private var emittedBodyBytes = 0
     private var continuation: CheckedContinuation<AIHTTPResponse, Error>?
     private var timeoutWorkItem: DispatchWorkItem?
     private var hasFinished = false
@@ -148,6 +165,9 @@ private final class MacPlainHTTPConnection: @unchecked Sendable {
             if let data {
                 self.responseData.append(data)
             }
+            guard self.responseData.count <= 8 * 1_048_576 else {
+                self.finish(.failure(AIHTTPTransportError.invalidResponse)); return
+            }
 
             do {
                 if let response = try self.parseResponse(isComplete: isComplete) {
@@ -194,7 +214,14 @@ private final class MacPlainHTTPConnection: @unchecked Sendable {
 
         let bodyStart = headerRange.upperBound
         let bodyBytes = Array(bytes.dropFirst(bodyStart))
+        func emit(_ body: Data) {
+            guard (200..<300).contains(status), body.count > emittedBodyBytes else { return }
+            request.onBody?(Data(body.dropFirst(emittedBodyBytes)))
+            emittedBodyBytes = body.count
+        }
         if let contentLength = headers["content-length"].flatMap({ Int($0) }) {
+            guard contentLength >= 0, contentLength <= 8 * 1_048_576 else { throw AIHTTPTransportError.invalidResponse }
+            emit(Data(bodyBytes.prefix(contentLength)))
             guard bodyBytes.count >= contentLength else { return nil }
             return AIHTTPResponse(
                 statusCode: status,
@@ -203,10 +230,13 @@ private final class MacPlainHTTPConnection: @unchecked Sendable {
         }
 
         if headers["transfer-encoding"]?.lowercased().contains("chunked") == true {
-            guard let body = Self.decodeChunkedBody(bodyBytes) else { return nil }
-            return AIHTTPResponse(statusCode: status, body: body)
+            let decoded = try Self.decodeChunkedBody(bodyBytes)
+            emit(decoded.body)
+            guard decoded.complete else { return nil }
+            return AIHTTPResponse(statusCode: status, body: decoded.body)
         }
 
+        emit(Data(bodyBytes))
         guard isComplete else { return nil }
         return AIHTTPResponse(statusCode: status, body: Data(bodyBytes))
     }
@@ -257,33 +287,37 @@ private final class MacPlainHTTPConnection: @unchecked Sendable {
         return data
     }
 
-    private static func decodeChunkedBody(_ bytes: [UInt8]) -> Data? {
+    private static func decodeChunkedBody(_ bytes: [UInt8]) throws -> (body: Data, complete: Bool) {
         var cursor = 0
         var body = Data()
 
         while true {
             guard let lineEnd = firstRange(of: [13, 10], in: bytes, from: cursor) else {
-                return nil
+                return (body, false)
             }
             let sizeText = String(decoding: bytes[cursor..<lineEnd.lowerBound], as: UTF8.self)
                 .split(separator: ";", maxSplits: 1, omittingEmptySubsequences: true)
                 .first
             guard let sizeText,
-                  let size = Int(sizeText.trimmingCharacters(in: .whitespaces), radix: 16) else {
-                return nil
+                  let size = Int(sizeText.trimmingCharacters(in: .whitespaces), radix: 16),
+                  size >= 0, size <= 8 * 1_048_576 else {
+                throw AIHTTPTransportError.malformedResponse
             }
             cursor = lineEnd.upperBound
 
             if size == 0 {
                 if firstRange(of: [13, 10], in: bytes, from: cursor)?.lowerBound == cursor {
-                    return body
+                    return (body, true)
                 }
-                return firstRange(of: [13, 10, 13, 10], in: bytes, from: cursor) == nil ? nil : body
+                return (body, firstRange(of: [13, 10, 13, 10], in: bytes, from: cursor) != nil)
             }
 
-            guard bytes.count >= cursor + size + 2,
-                  Array(bytes[(cursor + size)..<(cursor + size + 2)]) == [13, 10] else {
-                return nil
+            guard bytes.count >= cursor + size + 2 else {
+                body.append(contentsOf: bytes[cursor..<min(bytes.count, cursor + size)])
+                return (body, false)
+            }
+            guard Array(bytes[(cursor + size)..<(cursor + size + 2)]) == [13, 10] else {
+                throw AIHTTPTransportError.malformedResponse
             }
             body.append(contentsOf: bytes[cursor..<(cursor + size)])
             cursor += size + 2

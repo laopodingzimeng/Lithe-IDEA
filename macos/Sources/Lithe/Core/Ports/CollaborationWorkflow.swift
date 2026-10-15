@@ -9,6 +9,9 @@ struct CollaborationWorkflow: Codable, Identifiable, Sendable {
     let requirement: String
     let steps: [CollaborationStep]
     let prompts: [String: String]
+    /// Optional, confirmed independent file paths within an AI step. This is
+    /// scheduling metadata, never an additional write target or Core action.
+    var independentFiles: [String: [String]]? = nil
 
     func validate() throws {
         guard schemaVersion == 1, !id.isEmpty, id.count <= 128,
@@ -31,6 +34,11 @@ struct CollaborationWorkflow: Codable, Identifiable, Sendable {
                     throw CollaborationFailure.invalidPackage
                 }
             }
+        }
+        for (id, paths) in independentFiles ?? [:] {
+            guard let step = steps.first(where: { $0.id == id }), step.owner == .ai,
+                  paths.count >= 2, paths.count <= 8, Set(paths).count == paths.count,
+                  Set(paths) == Set(step.targets.map(\.path)) else { throw CollaborationFailure.invalidPackage }
         }
     }
 

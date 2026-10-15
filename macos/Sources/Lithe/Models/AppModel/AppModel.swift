@@ -1266,6 +1266,9 @@ final class AppModel: ObservableObject, Identifiable, UnsavedDocumentHandling {
     }
 
     func documentDidChange(_ document: EditorDocument) {
+        if collaborationFeature.plan != nil, document.isDirty {
+            collaborationFeature.presentation.userDidEdit()
+        }
         documentFeature.documentDidChange(document)
     }
 
