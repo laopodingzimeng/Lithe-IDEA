@@ -19,7 +19,14 @@ struct MacURLSessionTransport: AIHTTPTransport {
                 urlRequest.setValue(value, forHTTPHeaderField: key)
             }
 
-            let (data, response) = try await URLSession.shared.data(for: urlRequest, delegate: AIHTTPRedirectPolicy())
+            // Bound the entire response as well as idle time; a slow response must
+            // not extend a workflow request to URLSession.shared's resource limit.
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.timeoutIntervalForRequest = request.timeout
+            configuration.timeoutIntervalForResource = request.timeout
+            let session = URLSession(configuration: configuration)
+            defer { session.invalidateAndCancel() }
+            let (data, response) = try await session.data(for: urlRequest, delegate: AIHTTPRedirectPolicy())
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw AIHTTPTransportError.invalidResponse
             }
@@ -85,8 +92,12 @@ private final class MacPlainHTTPConnection: @unchecked Sendable {
 
     private func start(_ continuation: CheckedContinuation<AIHTTPResponse, Error>) {
         lock.lock()
+        guard !hasFinished else {
+            lock.unlock()
+            continuation.resume(throwing: CancellationError())
+            return
+        }
         self.continuation = continuation
-        lock.unlock()
 
         connection.stateUpdateHandler = { [weak self] state in
             guard let self else { return }
@@ -103,16 +114,17 @@ private final class MacPlainHTTPConnection: @unchecked Sendable {
         }
 
         let timeoutWorkItem = DispatchWorkItem { [weak self] in
-            self?.finish(.failure(AIHTTPTransportError.timedOut))
+            // A platform-independent URL error lets every caller distinguish a
+            // timeout from an authentication, protocol or connection failure.
+            self?.finish(.failure(URLError(.timedOut)))
         }
-        lock.lock()
         self.timeoutWorkItem = timeoutWorkItem
-        lock.unlock()
         DispatchQueue.global(qos: .userInitiated).asyncAfter(
             deadline: .now() + request.timeout,
             execute: timeoutWorkItem
         )
         connection.start(queue: DispatchQueue.global(qos: .userInitiated))
+        lock.unlock()
     }
 
     private func sendRequest() {

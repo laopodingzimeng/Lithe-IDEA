@@ -953,12 +953,6 @@ struct SettingsView: View {
                         .font(LitheTheme.smallFont)
                         .foregroundStyle(LitheTheme.warning)
                     }
-                    row("Model") {
-                        TextField("Model", text: editingProviderTextBinding(\.model))
-                            .litheSettingsTextField()
-                            .disabled(editingProviderIsConfigurationManaged)
-                    }
-
                     HStack(spacing: 8) {
                         SecureField("API key or token", text: $viewState.aiAPIKeyDraft)
                             .litheSettingsTextField()

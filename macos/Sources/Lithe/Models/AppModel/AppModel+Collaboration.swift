@@ -22,14 +22,15 @@ extension AppModel {
         guard let root = workspaceURL else { return }
         collaborationFeature.bind(workspace: root)
         // Only already-open workspace documents are shared with the selected model.
-        let context = documentFeature.editorDocuments.compactMap { document -> String? in
+        let files = documentFeature.editorDocuments.compactMap { document -> CollaborationFile? in
             let prefix = root.standardizedFileURL.path + "/"
             guard document.url.standardizedFileURL.path.hasPrefix(prefix) else { return nil }
             let path = String(document.url.standardizedFileURL.path.dropFirst(prefix.count))
             guard !path.split(separator: "/").contains(where: { $0.hasPrefix(".") }),
                   !["pem", "key", "p12", "pfx", "env"].contains(document.url.pathExtension.lowercased()) else { return nil }
-            return path + "\n" + String(document.text.prefix(20000))
-        }.prefix(8).joined(separator: "\n\n")
+            return CollaborationFile(path: path, text: document.text)
+        }
+        let context = collaborationFeature.includeEditorContext ? CollaborationPlanningContext.render(files) : "（本次仅分析需求，未附带代码）"
         collaborationFeature.generatePlan(context: context, settings: settings.commitMessageAI)
     }
 

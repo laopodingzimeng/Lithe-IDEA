@@ -30,7 +30,9 @@
   所有权属于当前项目的 FeatureModel；重启未完成任务先暂停，损坏记录保留并阻止覆盖，直到显式清除。
   工作流来源 URL 不持久化，重启后更新需要重新选择文件。尚未提交的答案和结果输入不持久化。
   原生会话现在优先读写平台 Application Support 的 session.json，偏好保留旧格式兼容。
-- 模型复用已有 HTTP 生成器的协议、凭据和超时，新增通用文本入口，不复用拥有工具权限的 ACP Agent。
+- 模型复用已有 HTTP 生成器的协议与凭据，协作文本请求使用独立的 180 秒上限，不复用拥有工具权限的 ACP Agent。
+  需求分析按总计 24,000 字符、每文件 6,000 字符、最多 8 文件采样并标注截断；可关闭代码上下文。
+  协作不继承提交功能的 reasoning effort，而使用模型默认行为，避免旧提交设置影响兼容模型。
   生成前后校验工作区、计划版本和取消状态。提交时通过 EditorClosingPreparation 持有编辑器，拒绝 dirty buffer。
 - 原生 adapter 在 Application Support/Lithe/Collaboration/<workspace-sha256> 保存 pending.json 与 session.json。
   写入前记录完整意图，每文件复用原生内容/字节身份校验与编码处理。完成后先保存会话再清除意图。
@@ -44,11 +46,18 @@
 正确做法：改 JSON 中“负数规则”的问题文字，结束旧计划后在桌面导入新版本。
 不要把任意 shell 字段加入包后直接执行，也不要为新工作流改写安装包里的资源。
 
+- A 方案工具窗固定顶部当前模型和底部下一步，主体只展示当前阶段。历史、测试和撤销收进“记录与管理”。
+  面板模型切换沿用共享原生菜单，配置编辑仍由既有设置页负责，不另建凭据管理。
+  面板与设置各自拥有诊断任务，切换模型、离开面板和项目关闭均取消；保存密钥清除旧测试结果。
+- HTTP 超时统一为 URLError.timedOut，HTTPS 同时设置整体资源时限；取消早于 HTTP continuation 注册时立即结束，
+  不留下永远等不到的任务。失败保留需求并给出中文重试建议，不自动重复付费调用。没有新增磁盘缓存资源。
+
 ## 考虑过的备选方案
 
 - 独立浏览器工作台：可以快速测试，但不是用户要求的桌面功能，已从交付源码撤下。
 - WebView 套壳：仍需原生权限桥接，且不满足本次原生交互方向，不采用。
 - 任意原生动态库：扩大兼容性、权限与签名负担，当前只需要更新工作流数据。
+- 仅把 45 秒超时改成无限等待：不能解决大上下文和隐藏推理参数，采用有限预算、上下文控制和明确重试。
 - 每个模板编译到 Swift：无法独立更新，采用外部 JSON 显式导入。
 
 ## 后果
@@ -59,6 +68,7 @@
 
 ## 验证
 
+- `scripts/test-macos.sh --filter CollaborationRequestTests`：上下文边界、独立请求预算、思考参数隔离与超时后重试。
 - `scripts/test-macos.sh --filter CollaborationFeatureModelTests`：原生状态、导入锁定、项目隔离与恢复。
 - `scripts/verify-service-boundaries.sh`：View、FeatureModel、端口与组合边界。
 - `scripts/verify-runtime-bundle-immutability.sh`：macOS 与 Windows 资源只读边界。

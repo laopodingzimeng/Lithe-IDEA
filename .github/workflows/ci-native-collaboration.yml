@@ -2,7 +2,7 @@ name: Build native collaboration macOS
 on:
   workflow_dispatch:
   push:
-    branches: [feat/extensible-collaboration-workbench, feat/ai-provider-model-discovery]
+    branches: [feat/extensible-collaboration-workbench, feat/ai-provider-model-discovery, fix/collaboration-panel-and-timeouts]
 permissions:
   contents: read
 concurrency:

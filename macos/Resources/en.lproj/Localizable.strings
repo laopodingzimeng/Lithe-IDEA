@@ -1543,3 +1543,5 @@
 "API or model not found (404). Check the URL, protocol and model name." = "API or model not found (404). Check the URL, protocol and model name.";
 "The provider rejected the request (429). Check the quota or retry later." = "The provider rejected the request (429). Check the quota or retry later.";
 "Provider request failed (%d). Check the API protocol and provider status." = "Provider request failed (%d). Check the API protocol and provider status.";
+
+"Enter a model manually" = "Enter a model manually";

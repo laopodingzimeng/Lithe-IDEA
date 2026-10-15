@@ -95,6 +95,7 @@ extension AppModel {
                 enableAIAssistanceModule()
             }
             showNotification("API key saved locally")
+            collaborationProviderDiagnostics.credentialsChanged()
             return true
         } catch { showNotification(error.localizedDescription); return false }
     }

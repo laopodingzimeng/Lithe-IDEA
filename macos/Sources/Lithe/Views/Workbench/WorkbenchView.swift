@@ -1330,6 +1330,11 @@ struct WorkbenchView: View {
         else if tool == .spring { SpringEndpointsView() }
         else if tool == .collaboration {
             CollaborationPanel(feature: model.collaborationFeature,
+                settings: settings, diagnostics: model.collaborationProviderDiagnostics,
+                openAISettings: {
+                    model.collaborationProviderDiagnostics.credentialsChanged()
+                    model.showSettings(category: .providers)
+                },
                 importWorkflow: { model.importCollaborationWorkflow() },
                 openTarget: { model.openCollaborationTarget($0) },
                 generatePlan: { model.generateCollaborationPlan() },
