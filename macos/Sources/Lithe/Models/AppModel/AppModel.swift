@@ -14,6 +14,10 @@ import LitheCoreContracts
 @MainActor
 final class AppModel: ObservableObject, Identifiable, UnsavedDocumentHandling {
     let id = UUID()
+    lazy var collaborationFeature = CollaborationFeatureModel(
+        operations: services.collaborationPlans, store: services.store, files: services.fileStorage,
+        generator: services.collaborationGenerator, editing: services.collaborationWorkspace
+    )
     lazy var ideCapabilities = IdeCapabilitiesFeatureModel(model: self)
     @Published var isChangingAgentProvider = false
     var workspaceURL: URL? { workspaceSessionCoordinator.workspaceURL }
@@ -625,6 +629,7 @@ final class AppModel: ObservableObject, Identifiable, UnsavedDocumentHandling {
     }
 
     func shutdownProjectSession() async {
+        await collaborationFeature.shutdown()
         await ideCapabilities.shutdown()
         shortcutSessionCoordinator?.shutdown()
         documentLanguageCoordinator?.stop()
