@@ -32,6 +32,16 @@ write 工具会越过人工核心代码的授权范围，且同一步多次写�
 - 进程临时状态位于 Application Support/Lithe/Pi/Sessions，生命周期是一轮模型任务。
   进程树退出后清理；不改写 bundle，不影响代码签名和 Sparkle 增量源文件。
   node_modules 与运行状态均没有可跨工作树复用的身份，资源清单显式拒绝。
+- Java 验证复用整个 LanguageTestService 和项目工具链解析器，在缓存中的有界源码副本运行。
+  只授权固定 actionId，不接受模型提供的命令。整个测试进程树只能写入该副本所属状态目录；
+  测试结果关联副本内容 SHA-256，不能将其声称为用户稍后修改的当前工作区结果。
+  副本与 Maven 临时仓库随任务清理，不跨工作树共享；普通测试面板仍保留原来的用户主动执行入口。
+- 关键事实与收据在同一 session.json 中保存。撤销后原快照进入归档收据，回放不从活文件补内容。
+  独立的 playback.json 只存讲解与观看位置，索引损坏时从收据重建基础章节，不能阻断开发写入。
+  每个索引保存都有版本号，迟到保存不能覆盖新游标；详细字段以共享录制契约为准。
+- 演示请求独立排队，最多一批在途、八批待讲解，自动调用有数量预算。用户问题优先于后台讲解。
+  B 的输出必须引用原事件和原快照，不能决定测试状态、扩大权限或移动用户固定的历史位置。
+  开发与演示各自选择既有服务商档案和模型覆盖值，不改动 Git 提交消息的活动模型。
 
 正确做法：Pi 请求修改映射方法，宿主检查原文后写入并返回真实收据，再允许下一次请求。
 不要让 Pi 返回的“已完成”替代收据，也不要把模型发出的 shell 命令交给终端执行。
@@ -52,6 +62,7 @@ write 工具会越过人工核心代码的授权范围，且同一步多次写�
 ## 验证
 
 - `node scripts/test-pi-bridge.mjs`：真实 SDK、本地确定性三协议服务端、工具往返、取消、错误脱敏、子进程写隔离。
+- `scripts/test-macos.sh --filter CollaborationPlaybackTests`：演示阻塞时开发继续、历史版本固定、无效讲解降级与角色配置独立。
 - `scripts/test-macos.sh --filter CollaborationExecutionTests`：多工具收据、逐次撤销和提交过程中接管；需要仓库固定 Swift 工具链。
 - `scripts/verify-service-boundaries.sh`：原生层间职责。
 - `scripts/verify-runtime-bundle-immutability.sh`：发行资源只读边界。

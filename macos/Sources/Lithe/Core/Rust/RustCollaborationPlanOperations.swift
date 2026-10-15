@@ -33,8 +33,13 @@ extension RustCollaborationPlanOperations {
     }
     func reverse(_ receipt: CollaborationReceipt, files: [CollaborationFile]) throws -> CollaborationReceipt {
         struct Payload: Encodable { let receipt: CollaborationReceipt; let files: [CollaborationFile] }
+        // Tool identity belongs to the host journal, not Core's strict v1 schema.
+        var coreReceipt = receipt
+        coreReceipt.operationId = nil
         let result: Result<CollaborationReceipt, RustCoreBridge.CoreCallError> = core.executeResult(
-            command: "collaboration.reverse", payload: Payload(receipt: receipt, files: files))
-        return try result.get()
+            command: "collaboration.reverse", payload: Payload(receipt: coreReceipt, files: files))
+        var inverse = try result.get()
+        inverse.operationId = receipt.operationId
+        return inverse
     }
 }

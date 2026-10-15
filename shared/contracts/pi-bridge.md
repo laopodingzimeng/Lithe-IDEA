@@ -63,7 +63,7 @@ claim. Verification takes an authorized host `actionId`, never shell commands.
 No general shell, package installer or arbitrary process tool is exposed.
 
 Host responses contain a bounded `result` object or stable error `code`.
-Tool timeout is 60 seconds and the call budget is 200 per run. Host actions that
+Tool timeout is 60 seconds (180 seconds for isolated verification) and the call budget is 200 per run. Host actions that
 outlive this response budget must use host job identities and explicit status;
 the worker must not re-run an unknown outcome as a retry.
 

@@ -24,6 +24,20 @@ struct MacCollaborationWorkspace: CollaborationWorkspaceEditing {
         } else if files.fileExists(at: url) { try files.removeItem(at: url) }
     }
 
+    func loadPlayback(workspace: URL) throws -> Data? {
+        let url = journal(workspace).deletingLastPathComponent().appendingPathComponent("playback.json")
+        guard files.fileExists(at: url) else { return nil }
+        return try files.readPrefix(from: url, byteCount: 8 * 1024 * 1024 + 1)
+    }
+    func savePlayback(_ data: Data?, workspace: URL) throws {
+        let url = journal(workspace).deletingLastPathComponent().appendingPathComponent("playback.json")
+        if let data {
+            guard data.count <= 8 * 1024 * 1024 else { throw PiAgentFailure.outputLimit }
+            try files.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try files.writeData(data, to: url, options: .atomic)
+        } else if files.fileExists(at: url) { try files.removeItem(at: url) }
+    }
+
     func snapshot(paths: [String], workspace: URL) throws -> [CollaborationFile] {
         guard paths.count <= 100 else { throw CollaborationFailure.invalidState }
         var size = 0

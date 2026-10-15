@@ -1331,8 +1331,10 @@ struct WorkbenchView: View {
         else if tool == .collaboration {
             CollaborationPanel(feature: model.collaborationFeature,
                 settings: settings, diagnostics: model.collaborationProviderDiagnostics,
+                presentationDiagnostics: model.collaborationPresentationDiagnostics,
                 openAISettings: {
                     model.collaborationProviderDiagnostics.credentialsChanged()
+                    model.collaborationPresentationDiagnostics.credentialsChanged()
                     model.showSettings(category: .providers)
                 },
                 importWorkflow: { model.importCollaborationWorkflow() },

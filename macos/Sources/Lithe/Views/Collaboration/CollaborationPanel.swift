@@ -7,6 +7,7 @@ struct CollaborationPanel: View {
     @ObservedObject var feature: CollaborationFeatureModel
     @ObservedObject var settings: AppSettings
     @ObservedObject var diagnostics: AIProviderDiagnosticsFeatureModel
+    @ObservedObject var presentationDiagnostics: AIProviderDiagnosticsFeatureModel
     let openAISettings: () -> Void
     let importWorkflow: () -> Void
     let openTarget: (String) -> Void
@@ -21,7 +22,7 @@ struct CollaborationPanel: View {
     let openAgent: () -> Void
     let minimize: () -> Void
     @State private var confirmingDiscard = false
-    private var provider: AIProviderProfile? { settings.commitMessageAI.activeProvider }
+    private var provider: AIProviderProfile? { feature.modelSettings.provider(for: .development, in: settings.commitMessageAI) }
     private var locked: Bool { feature.busy || feature.hasPendingWrite }
     private var canRequest: Bool { provider?.isValid == true && !diagnostics.busy }
 
@@ -49,7 +50,10 @@ struct CollaborationPanel: View {
         .font(LitheTheme.uiFont(size: 12))
         .foregroundStyle(LitheTheme.primaryText)
         .background(LitheTheme.editor)
-        .onAppear { diagnostics.bind(provider) }
+        .onAppear { feature.configurePlayback(settings: settings.commitMessageAI) }
+        .onChange(of: feature.modelSettings) { _ in feature.configurePlayback(settings: settings.commitMessageAI) }
+        .onChange(of: settings.commitMessageAI) { _ in feature.configurePlayback(settings: settings.commitMessageAI) }
+        .onChange(of: feature.plan?.id) { _ in feature.configurePlayback(settings: settings.commitMessageAI) }
         .onChange(of: provider) { diagnostics.bind($0) }
         .onDisappear { diagnostics.cancel() }
         .alert("结束当前计划？", isPresented: $confirmingDiscard) {
@@ -62,54 +66,18 @@ struct CollaborationPanel: View {
     }
 
     private var modelBar: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("当前协作模型").font(LitheTheme.uiFont(size: 11)).foregroundStyle(LitheTheme.secondaryText)
+                Text("角色与模型").font(LitheTheme.uiFont(size: 11)).foregroundStyle(LitheTheme.secondaryText)
                 Spacer()
-                Button("模型设置", action: openAISettings).buttonStyle(.plain).foregroundStyle(LitheTheme.accent)
+                Button("服务商设置", action: openAISettings).buttonStyle(.plain).foregroundStyle(LitheTheme.accent)
             }
-            LitheMenu {
-                for candidate in settings.commitMessageAI.providers {
-                    LitheContextMenuItem.action(candidate.model + " · " + candidate.name,
-                        localizesTitle: false, checked: candidate.id == provider?.id) {
-                        settings.selectCommitMessageProvider(candidate.id)
-                    }
-                }
-                LitheContextMenuItem.separator
-                LitheContextMenuItem.action("配置服务商与模型…", action: openAISettings)
-            } label: {
-                HStack(spacing: 8) {
-                    Text(provider?.model.isEmpty == false ? provider!.model : "选择或配置模型")
-                        .lineLimit(1).truncationMode(.middle)
-                    Spacer(minLength: 4)
-                    LitheIDEAIcon(resourcePath: "expui/general/chevronDown.svg", size: 16)
-                }.frame(maxWidth: .infinity)
-            }
-            .buttonStyle(LitheSecondaryButtonStyle(horizontalPadding: 10, height: 30, fontSize: 12))
-            .disabled(feature.busy || diagnostics.busy)
-            .accessibilityIdentifier("collaboration-provider")
-            HStack(spacing: 8) {
-                Text(provider.map { $0.name + " · " + $0.apiProtocol.title } ?? "先在模型设置中添加服务商")
-                    .lineLimit(1).foregroundStyle(LitheTheme.secondaryText)
-                Spacer(minLength: 0)
-                if diagnostics.busy {
-                    ProgressView().controlSize(.small)
-                    Button("取消") { diagnostics.cancel() }.buttonStyle(.plain)
-                } else {
-                    Button("测试连接") { diagnostics.bind(provider); diagnostics.testConnection() }
-                        .buttonStyle(.plain).foregroundStyle(LitheTheme.accent)
-                        .disabled(provider?.isValid != true || feature.busy)
-                }
-            }.font(LitheTheme.uiFont(size: 10))
-            if diagnostics.connectionState == .ready {
-                Text("连接测试通过 · 短消息已返回").font(LitheTheme.uiFont(size: 11)).foregroundStyle(LitheTheme.success)
-            }
-            if let error = diagnostics.connectionError {
-                Text(error).font(LitheTheme.uiFont(size: 11)).foregroundStyle(LitheTheme.warning).textSelection(.enabled)
-            }
-        }
-        .padding(14)
-        .background(LitheTheme.sidebar)
+            CollaborationRoleSelector(role: .development, feature: feature, settings: settings, diagnostics: diagnostics)
+            CollaborationRoleSelector(role: .presentation, feature: feature, settings: settings, diagnostics: presentationDiagnostics)
+            LitheSettingsCheckbox(isOn: $feature.modelSettings.narrationEnabled, title: "自动准备讲解，开发独立运行")
+            Text("设置对下一次请求生效；共用账户可能共享服务商限额。")
+                .font(LitheTheme.uiFont(size: 10)).foregroundStyle(LitheTheme.secondaryText)
+        }.padding(14).background(LitheTheme.sidebar)
     }
 
     private var requirementContent: some View {
@@ -132,6 +100,7 @@ struct CollaborationPanel: View {
             .disabled(locked)
             .accessibilityIdentifier("collaboration-requirement")
             LitheSettingsCheckbox(isOn: $feature.includeEditorContext, title: "自动定位并读取相关项目代码").disabled(locked)
+            LitheSettingsCheckbox(isOn: $feature.allowsVerification, title: "允许 AI 在隔离副本中运行 Java 测试").disabled(locked)
             hint(feature.includeEditorContext
                  ? "使用项目目录定位文件，代码总计最多 24,000 字符。排除隐藏文件与密钥文件。"
                  : "本次只分析需求。生成后补充文件范围，再开始执行。")
@@ -275,7 +244,7 @@ struct CollaborationPanel: View {
                         else { feature.takeOver() }
                     }.buttonStyle(.plain).foregroundStyle(LitheTheme.accent)
                 }
-                hint("草稿实时展示在编辑器下方；每个模型请求最多 180 秒。")
+                hint("代码与操作实时展示在编辑器下方；Pi 每轮运行预算为 10 分钟。")
             } else if !feature.hasPendingWrite {
                 primaryAction
                 if let plan = feature.plan, !plan.paused, plan.phase != .complete {
@@ -314,22 +283,7 @@ struct CollaborationPanel: View {
     }
 
     private var questionComposer: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if !feature.questionAnswer.isEmpty {
-                DisclosureGroup("当前步骤的解释") {
-                    ScrollView { Text(feature.questionAnswer).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
-                        .frame(maxHeight: 140).litheScrollViewChrome()
-                }.font(LitheTheme.uiFont(size: 11))
-            }
-            HStack(spacing: 8) {
-                TextField("对这一步有疑问，直接问…", text: $feature.questionText)
-                    .litheSettingsTextField()
-                    .onSubmit { if !locked && canRequest { feature.ask(settings: settings.commitMessageAI) } }
-                Button("提问") { feature.ask(settings: settings.commitMessageAI) }
-                    .buttonStyle(LitheSecondaryButtonStyle(horizontalPadding: 9, height: 28, fontSize: 11))
-                    .disabled(locked || !canRequest || feature.questionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
+        CollaborationQuestionComposer(playback: feature.playback)
     }
 
     private var recovery: some View {
@@ -347,6 +301,16 @@ struct CollaborationPanel: View {
                 secondary("导入工作流…", action: importWorkflow).disabled(locked || feature.workspaceURL == nil)
                 hint("工作流可调整步骤、问题和验收条件。更新 JSON 无需重新安装。")
                 secondary("运行项目 Java 测试", action: runTests).disabled(locked || feature.workspaceURL == nil)
+                ForEach(feature.verifications, id: \.executionID) { result in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("隔离验证：" + result.outcome).font(LitheTheme.uiFont(size: 11, weight: .semibold))
+                        Text("对应副本 " + String(result.sourceRevision.prefix(12)))
+                            .font(LitheTheme.uiFont(size: 10, design: .monospaced))
+                        DisclosureGroup("查看执行输出") {
+                            Text(result.output).font(LitheTheme.codeFont).textSelection(.enabled)
+                        }
+                    }
+                }
                 secondary("撤销最近 AI 修改", action: undo)
                     .disabled(locked || feature.receipts.isEmpty || !(feature.plan?.paused == true || feature.plan?.phase == .complete))
                 DisclosureGroup("工作流版本") {

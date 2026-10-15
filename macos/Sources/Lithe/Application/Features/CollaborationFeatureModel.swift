@@ -10,15 +10,31 @@ final class CollaborationFeatureModel: ObservableObject {
         let plan: CollaborationPlan
         let evidence: [String: String]
         var receipts: [CollaborationReceipt]? = nil
+        var verifications: [CollaborationVerificationResult]? = nil
+        var workspaceID: String? = nil
+        var facts: [CollaborationFact]? = nil
+        var archivedReceipts: [CollaborationReceipt]? = nil
     }
     @Published private(set) var busy = false
     @Published private(set) var receipts: [CollaborationReceipt] = []
+    @Published private(set) var verifications: [CollaborationVerificationResult] = []
+    @Published var allowsVerification = true
+    @Published var modelSettings = CollaborationModelSettings() {
+        didSet { if let data = try? JSONEncoder().encode(modelSettings) { store.set(data, forKey: "collaboration.models.v1") } }
+    }
     @Published private(set) var hasPendingWrite = false
     @Published private(set) var library: [CollaborationWorkflow] = []
     @Published var requirementText = ""
     @Published var includeEditorContext = true
     @Published private(set) var activityTitle = "正在处理"
     let presentation = CollaborationPresentationModel()
+    let playback: CollaborationPlaybackModel
+    private let playbackPersistence: CollaborationPlaybackPersistence
+    private var playbackSaves: Task<Void, Never>?
+    @Published private(set) var playbackStorageError: String?
+    private var recordingWorkspaceID = UUID().uuidString
+    private var facts: [CollaborationFact] = []
+    private var archivedReceipts: [CollaborationReceipt] = []
     @Published var questionText = ""
     @Published private(set) var questionAnswer = ""
     @Published var workflowDraftText = ""
@@ -27,6 +43,7 @@ final class CollaborationFeatureModel: ObservableObject {
     let generator: any CollaborationGenerating
     let editing: any CollaborationWorkspaceEditing
     let pi: any PiAgentRunning
+    let verifier: any CollaborationVerifying
     @Published private(set) var workflow: CollaborationWorkflow?
     @Published private(set) var plan: CollaborationPlan?
     @Published private(set) var evidence: [String: String] = [:]
@@ -45,16 +62,32 @@ final class CollaborationFeatureModel: ObservableObject {
     init(operations: any CollaborationPlanOperating, store: any KeyValueStore, files: any FileStorage,
          generator: any CollaborationGenerating = UnavailableCollaborationGenerator(),
          editing: any CollaborationWorkspaceEditing = UnavailableCollaborationWorkspace(),
-         pi: any PiAgentRunning = UnavailablePiAgentRunner()) {
+         pi: any PiAgentRunning = UnavailablePiAgentRunner(),
+         verifier: any CollaborationVerifying = UnavailableCollaborationVerifier()) {
         self.generator = generator
         self.editing = editing
         self.pi = pi
+        self.verifier = verifier
+        self.playback = CollaborationPlaybackModel(pi: pi)
+        self.playbackPersistence = CollaborationPlaybackPersistence(editing: editing)
         self.operations = operations
         self.store = store
         self.files = files
+        if let data = store.data(forKey: "collaboration.models.v1"),
+           let saved = try? JSONDecoder().decode(CollaborationModelSettings.self, from: data) { modelSettings = saved }
         if let data = store.data(forKey: "collaboration.library.v1"), data.count <= 4 * 1_048_576,
            let packages = try? JSONDecoder().decode([CollaborationWorkflow].self, from: data) {
             library = packages.filter { (try? $0.validate()) != nil }
+        }
+        playback.onSave = { [weak self] state in
+            guard let self, let root = self.workspaceURL else { return }
+            let previous = self.playbackSaves
+            self.playbackSaves = Task { [weak self] in
+                await previous?.value
+                guard let self else { return }
+                do { try await self.playbackPersistence.save(state, workspace: root) }
+                catch { if self.workspaceURL == root { self.playbackStorageError = "播放位置保存失败，关键修改记录仍保留。" } }
+            }
         }
     }
 
@@ -68,6 +101,9 @@ final class CollaborationFeatureModel: ObservableObject {
         didBind = true
         workspaceURL = workspace
         workflow = nil; plan = nil; evidence = [:]; receipts = []; sourceURL = nil
+        verifications = []
+        facts = []; archivedReceipts = []; recordingWorkspaceID = UUID().uuidString
+        playback.reset(); playbackStorageError = nil
         answers = []; resultText = ""; error = nil; recoveryFailed = false
         hasPendingWrite = false
         presentation.reset(); questionText = ""; questionAnswer = ""
@@ -98,6 +134,22 @@ final class CollaborationFeatureModel: ObservableObject {
                 checked = try operations.transition(session.plan, action: .init(kind: "pause"))
             }
             workflow = session.workflow; plan = checked; evidence = session.evidence; receipts = session.receipts ?? []
+            verifications = session.verifications ?? []
+            recordingWorkspaceID = session.workspaceID ?? recordingWorkspaceID
+            archivedReceipts = session.archivedReceipts ?? []
+            facts = session.facts ?? receipts.enumerated().map { index, receipt in
+                CollaborationFact(id: receipt.key, workspaceID: recordingWorkspaceID, planVersion: receipt.planVersion,
+                    runID: receipt.operationId ?? "legacy", taskID: receipt.stepId, sourceSequence: UInt64(index + 1),
+                    recordedAt: nil, kind: "write", title: "已记录的代码修改", receiptID: receipt.key)
+            }
+            synchronizePlayback()
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let state = try await self.playbackPersistence.load(workspace: workspace)
+                    if self.workspaceURL == workspace { self.playback.restore(state) }
+                } catch { if self.workspaceURL == workspace { self.playbackStorageError = "讲解索引不可用，已从修改收据重建基础章节。" } }
+            }
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             workflowDraftText = String(decoding: try encoder.encode(session.workflow), as: UTF8.self)
             resetInputs()
@@ -125,9 +177,11 @@ final class CollaborationFeatureModel: ObservableObject {
                 steps: next.steps, currentStep: 0, phase: .draft, paused: false)
             _ = try operations.transition(draft, action: .init(kind: "confirm"))
             try install(next)
-            try persist(workflow: next, plan: draft, evidence: [:], receipts: [])
+            let first = makeFact(kind: "draft", title: next.title, plan: draft, sequence: 1)
+            try persist(workflow: next, plan: draft, evidence: [:], receipts: [], facts: [first], archivedReceipts: [], verifications: [])
             workflowDraftText = String(decoding: data, as: UTF8.self)
             workflow = next; plan = draft; evidence = [:]; receipts = []; sourceURL = source
+            facts = [first]; archivedReceipts = []; verifications = []; playback.reset(); synchronizePlayback()
             presentation.reset(); questionAnswer = ""
             error = nil; resetInputs()
         } catch { self.error = error.localizedDescription }
@@ -143,8 +197,10 @@ final class CollaborationFeatureModel: ObservableObject {
             let draft = CollaborationPlan(id: UUID().uuidString, version: 1, requirement: next.requirement,
                 steps: next.steps, currentStep: 0, phase: .draft, paused: false)
             _ = try operations.transition(draft, action: .init(kind: "confirm"))
-            try persist(workflow: next, plan: draft, evidence: [:], receipts: [])
+            let first = makeFact(kind: "draft", title: next.title, plan: draft, sequence: 1)
+            try persist(workflow: next, plan: draft, evidence: [:], receipts: [], facts: [first], archivedReceipts: [], verifications: [])
             workflow = next; plan = draft; evidence = [:]; receipts = []; error = nil; resetInputs()
+            facts = [first]; archivedReceipts = []; verifications = []; playback.reset(); synchronizePlayback()
         } catch { self.error = error.localizedDescription }
     }
 
@@ -171,8 +227,11 @@ final class CollaborationFeatureModel: ObservableObject {
             }
             let action = CollaborationAction(kind: kind, answers: kind == "resolveQuestions" ? answers : nil)
             let next = try operations.transition(plan, action: action)
-            try persist(workflow: workflow, plan: next, evidence: nextEvidence)
+            let recorded = facts + [makeFact(kind: kind, title: (next.step?.title ?? "计划") + " · " + next.phase.title, plan: next)]
+            try persist(workflow: workflow, plan: next, evidence: nextEvidence, facts: recorded)
+            facts = recorded
             self.plan = next; evidence = nextEvidence; error = nil
+            synchronizePlayback()
             if plan.step?.id != next.step?.id { questionAnswer = "" }
             if kind == "start", let path = next.step?.targets.first?.path { presentation.requestOpen(path) }
             if plan.step?.id != next.step?.id || kind == "resolveQuestions" || kind == "workFinished" {
@@ -189,6 +248,8 @@ final class CollaborationFeatureModel: ObservableObject {
         catch { self.error = error.localizedDescription; return }
         if let key = storageKey { store.set(nil, forKey: key) }
         plan = nil; workflow = nil; evidence = [:]; receipts = []; recoveryFailed = false; error = nil
+        verifications = []
+        facts = []; archivedReceipts = []; playback.reset()
         presentation.reset(); questionText = ""; questionAnswer = ""
         resetInputs()
     }
@@ -209,9 +270,14 @@ final class CollaborationFeatureModel: ObservableObject {
         resultText = plan?.step.flatMap { evidence[$0.id] } ?? ""
     }
 
-    private func persist(workflow: CollaborationWorkflow, plan: CollaborationPlan, evidence: [String: String], receipts: [CollaborationReceipt]? = nil) throws {
+    private func persist(workflow: CollaborationWorkflow, plan: CollaborationPlan, evidence: [String: String], receipts: [CollaborationReceipt]? = nil,
+                         facts: [CollaborationFact]? = nil, archivedReceipts: [CollaborationReceipt]? = nil,
+                         verifications: [CollaborationVerificationResult]? = nil) throws {
         guard let key = storageKey else { throw CollaborationFailure.missingProject }
-        let data = try JSONEncoder().encode(Session(workflow: workflow, plan: plan, evidence: evidence, receipts: receipts ?? self.receipts))
+        guard (facts ?? self.facts).count <= 2000 else { throw PiAgentFailure.outputLimit }
+        let data = try JSONEncoder().encode(Session(workflow: workflow, plan: plan, evidence: evidence, receipts: receipts ?? self.receipts,
+                                                  verifications: verifications ?? self.verifications, workspaceID: recordingWorkspaceID,
+                                                  facts: facts ?? self.facts, archivedReceipts: archivedReceipts ?? self.archivedReceipts))
         guard data.count <= Self.byteLimit else { throw CollaborationFailure.invalidState }
         if let workspaceURL { try editing.saveSession(data, workspace: workspaceURL) }
         store.set(data, forKey: key)
@@ -219,6 +285,8 @@ final class CollaborationFeatureModel: ObservableObject {
     func shutdown() async {
         cancel()
         await task?.value
+        await playback.shutdown()
+        await playbackSaves?.value
     }
 
     func cancel() {
@@ -242,6 +310,7 @@ final class CollaborationFeatureModel: ObservableObject {
 
     func takeOver() {
         presentation.userDidEdit()
+        playback.pause()
         perform("pause")
     }
 
@@ -463,6 +532,12 @@ final class CollaborationFeatureModel: ObservableObject {
                 let files = try self.editing.snapshot(paths: receipt.after.map(\.path), workspace: root)
                 var inverse = try self.operations.reverse(receipt, files: files)
                 inverse.operationId = receipt.operationId
+                if let workflow = self.workflow {
+                    let projected = Session(workflow: workflow, plan: plan, evidence: self.evidence, receipts: self.receipts,
+                        verifications: self.verifications, workspaceID: self.recordingWorkspaceID, facts: self.facts,
+                        archivedReceipts: self.archivedReceipts + [inverse])
+                    guard try JSONEncoder().encode(projected).count <= Self.byteLimit else { throw PiAgentFailure.outputLimit }
+                }
                 let intent = CollaborationPendingWrite(receipt: inverse, plan: plan, undo: true)
                 try await commit(intent)
                 guard self.generation == operation, self.workspaceURL == root else { return }
@@ -511,7 +586,14 @@ final class CollaborationFeatureModel: ObservableObject {
         guard let workflow, plan?.id == intent.plan.id else { throw CollaborationFailure.invalidState }
         var updated = intent.continuesStep == true ? (plan ?? intent.plan) : intent.plan
         var records = receipts
+        var archive = archivedReceipts
+        var historyReceipt = intent.receipt
         if intent.undo {
+            if let original = records.first(where: { $0.key == intent.receipt.key }), !archive.contains(where: { $0.key == original.key }) {
+                archive.append(original)
+            }
+            historyReceipt.operationId = (intent.receipt.operationId ?? intent.receipt.key) + ":undo"
+            if !archive.contains(where: { $0.key == historyReceipt.key }) { archive.append(historyReceipt) }
             records.removeAll { $0.key == intent.receipt.key }
             guard let index = updated.steps.firstIndex(where: { $0.id == intent.receipt.stepId }) else { throw CollaborationFailure.invalidState }
             updated.currentStep = index; updated.phase = .ready; updated.paused = true; updated.version += 1
@@ -524,11 +606,18 @@ final class CollaborationFeatureModel: ObservableObject {
         if intent.continuesStep != true { updated.version = max(updated.version, plan?.version ?? 0) + 1 }
         var results = evidence
         results[intent.receipt.stepId] = intent.undo ? "已撤销本步修改。" : "AI 修改已通过 Core 范围校验并写入项目。请审阅差异并运行测试。"
-        try persist(workflow: workflow, plan: updated, evidence: results, receipts: records)
+        var recorded = facts
+        if !recorded.contains(where: { $0.receiptID == historyReceipt.key }) {
+            recorded.append(makeFact(kind: intent.undo ? "undo" : "write", title: intent.undo ? "撤销最近一次 AI 修改" : "已写入 " + historyReceipt.after.map(\.path).joined(separator: "、"),
+                plan: updated, receiptID: historyReceipt.key))
+        }
+        try persist(workflow: workflow, plan: updated, evidence: results, receipts: records, facts: recorded, archivedReceipts: archive)
+        facts = recorded; archivedReceipts = archive
         plan = updated; receipts = records; evidence = results
         hasPendingWrite = true
         try editing.finish(workspace: workspace)
         hasPendingWrite = false; error = nil; resetInputs()
+        synchronizePlayback()
         if intent.undo { presentation.reset() }
     }
 
@@ -537,7 +626,7 @@ final class CollaborationFeatureModel: ObservableObject {
                    prepareRead: @escaping @MainActor () async throws -> Void,
                    commit: @escaping @MainActor (CollaborationPendingWrite) async throws -> Void) -> Task<Void, Never>? {
         guard !busy, !hasPendingWrite, let plan, !plan.paused, let root = workspaceURL,
-              let provider = settings.activeProvider,
+              let provider = modelSettings.provider(for: .development, in: settings),
               plan.phase == .aiWorking || plan.phase == .checking else { return nil }
         generation = UUID(); let operation = generation
         busy = true; error = nil
@@ -545,8 +634,11 @@ final class CollaborationFeatureModel: ObservableObject {
         presentation.begin(groups: [plan.step?.targets ?? []])
         let catalog = CollaborationPlanningContext.catalog(projectPaths + plan.steps.flatMap { $0.targets.map(\.path) })
         let reads = CollaborationReadTools(editing: editing, workspace: root, catalog: catalog)
+        configurePlayback(settings: settings)
         let request = PiAgentRequest(runID: operation.uuidString, role: plan.phase == .checking ? .review : .development,
-            workspace: root, provider: provider, system: Self.piInstructions, prompt: currentPrompt)
+            workspace: root, provider: provider, system: Self.piInstructions,
+            prompt: currentPrompt + (allowsVerification ? "\n宿主授权的验证 actionId：java-tests（Maven 项目的隔离副本）。" : "\n本轮未授权自动验证。"),
+            timeoutSeconds: max(30, min(modelSettings.developmentTimeoutSeconds, 3600)))
         task = Task { [weak self] in
             guard let self else { return }
             defer { if self.generation == operation { self.busy = false; self.task = nil } }
@@ -607,6 +699,21 @@ final class CollaborationFeatureModel: ObservableObject {
             try Task.checkCancellation()
             return try await reads.perform(call)
         }
+        if call.name == "workspace_verify" {
+            guard expected.phase == .aiWorking, allowsVerification, let action = call.arguments.actionId,
+                  action == "java-tests" else { throw PiAgentFailure.toolDenied }
+            try await prepareRead()
+            try Task.checkCancellation()
+            let result = try await verifier.verify(workspace: reads.workspace, actionID: action)
+            try Task.checkCancellation()
+            guard generation == operation, workspaceURL == reads.workspace, let workflow, let plan else { throw CancellationError() }
+            guard verifications.count < 100 else { throw PiAgentFailure.outputLimit }
+            verifications.append(result)
+            let recorded = facts + [makeFact(kind: "verification", title: "隔离验证：" + result.outcome, plan: plan, verificationID: result.executionID)]
+            try persist(workflow: workflow, plan: plan, evidence: evidence, facts: recorded)
+            facts = recorded; synchronizePlayback()
+            return try JSONEncoder().encode(result)
+        }
         guard call.name == "workspace_apply", expected.phase == .aiWorking,
               let changes = call.arguments.changes, !changes.isEmpty else { throw PiAgentFailure.toolDenied }
         guard changes.allSatisfy({ change in expected.step?.targets.contains(change.target) == true }) else { throw PiAgentFailure.toolDenied }
@@ -619,7 +726,8 @@ final class CollaborationFeatureModel: ObservableObject {
         receipt.operationId = operation.uuidString + ":" + call.toolCallId
         guard !receipts.contains(where: { $0.key == receipt.key }), let workflow else { throw PiAgentFailure.toolDenied }
         // Prove that the next durable session fits before the first source write.
-        let projected = Session(workflow: workflow, plan: expected, evidence: evidence, receipts: receipts + [receipt])
+        let projected = Session(workflow: workflow, plan: expected, evidence: evidence, receipts: receipts + [receipt], verifications: verifications,
+            workspaceID: recordingWorkspaceID, facts: facts, archivedReceipts: archivedReceipts)
         guard try JSONEncoder().encode(projected).count <= Self.byteLimit else { throw PiAgentFailure.outputLimit }
         let intent = CollaborationPendingWrite(receipt: receipt, plan: expected, undo: false, continuesStep: true)
         try await commit(intent)
@@ -643,6 +751,23 @@ final class CollaborationFeatureModel: ObservableObject {
     After each host-confirmed write you may inspect and improve the result within the same grants. A rejected write never authorizes broader access. No shell is available. Only host verification results establish test success; never infer success from your analysis. If verification is unavailable, say it has not run.
     Finish with a concise Chinese explanation of actual changes and outstanding checks. During review, report concrete locations, trigger conditions and suggestions without editing the human's code.
     """
+
+    private func makeFact(kind: String, title: String, plan: CollaborationPlan, receiptID: String? = nil,
+                          verificationID: String? = nil, sequence: UInt64? = nil) -> CollaborationFact {
+        CollaborationFact(id: UUID().uuidString, workspaceID: recordingWorkspaceID, planVersion: plan.version,
+            runID: generation.uuidString, taskID: plan.step?.id ?? "plan", sourceSequence: sequence ?? ((facts.last?.sourceSequence ?? 0) + 1),
+            recordedAt: Date(), kind: kind, title: title,
+            summary: String((plan.requirement + "\n" + (plan.step?.acceptance.joined(separator: "\n") ?? "")).prefix(4000)),
+            receiptID: receiptID, verificationID: verificationID)
+    }
+    private func synchronizePlayback() {
+        playback.synchronize(facts: facts, receipts: receipts + archivedReceipts, verifications: verifications)
+    }
+    func configurePlayback(settings: CommitMessageAISettings) {
+        guard let workspaceURL else { return }
+        playback.configure(workspace: workspaceURL, provider: modelSettings.provider(for: .presentation, in: settings),
+                           automaticEnabled: modelSettings.narrationEnabled)
+    }
 
     private static func jsonData(_ text: String) -> Data {
         var text = text.trimmingCharacters(in: .whitespacesAndNewlines)

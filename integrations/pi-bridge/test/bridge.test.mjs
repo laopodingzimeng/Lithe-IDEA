@@ -37,6 +37,20 @@ test('Pi read-only presentation has no live tools and uses its own credentials',
   assert.equal(provider.requests[0].body.tools?.length ?? 0, 0);
 });
 
+test('a stalled presentation SDK session does not hold the independent development session', async t => {
+  const slow = await providerFixture(t, () => {});
+  const fast = await providerFixture(t, entry => textReply(entry, 'development completed'));
+  const presentation = await controllerFixture(t, configuration(slow.url, 'presentation', 'presentation-key'));
+  const development = await controllerFixture(t, configuration(fast.url, 'development', 'development-key'));
+  await presentation.prompt('Explain the previous snapshot', 'presentation');
+  await slow.arrived.wait(() => true);
+  await development.prompt('Continue development', 'development');
+  assert.equal((await development.box.wait(value => value.type === 'run_finished')).outcome, 'completed');
+  assert.equal(presentation.box.events.some(value => value.type === 'run_finished'), false);
+  await presentation.controller.accept({ type: 'cancel', requestId: 'cancel-presentation', runId: 'presentation' });
+  assert.equal((await presentation.box.wait(value => value.type === 'run_finished')).outcome, 'cancelled');
+});
+
 test('cancel invalidates a pending tool before abort and rejects its late result', async t => {
   const provider = await providerFixture(t, entry => toolReply(entry, 'workspace_read', { target: { kind: 'file', path: 'src/Main.java' } }));
   const { controller, box, prompt } = await controllerFixture(t, configuration(provider.url));

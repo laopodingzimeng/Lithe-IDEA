@@ -82,7 +82,8 @@ export class HostToolBroker {
         callback(value);
       };
       const abort = () => finish(reject, new BridgeError('cancelled'));
-      const timer = setTimeout(() => finish(reject, new BridgeError('tool_timeout')), this.#timeout);
+      const timer = setTimeout(() => finish(reject, new BridgeError('tool_timeout')),
+        name === 'workspace_verify' ? LIMITS.verificationTimeoutMs : this.#timeout);
       this.#pending.set(toolCallId, { runId, resolve: value => finish(resolve, value), reject: error => finish(reject, error) });
       signal?.addEventListener('abort', abort, { once: true });
       try { this.#send({ type: 'tool_request', runId, toolCallId, name, arguments: params }); }

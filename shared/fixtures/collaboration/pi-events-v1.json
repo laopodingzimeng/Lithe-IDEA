@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "fact": {
+    "id": "event-1",
+    "workspaceID": "workspace-fixture",
+    "planVersion": 3,
+    "runID": "development-fixture",
+    "taskID": "mapper",
+    "sourceSequence": 1,
+    "recordedAt": null,
+    "kind": "write",
+    "title": "已写入 Mapper.java",
+    "receiptID": "plan:3:mapper:run:tool-1"
+  },
+  "narration": {
+    "schemaVersion": 1,
+    "sourceEventIDs": ["event-1"],
+    "snapshotID": "plan:3:mapper:run:tool-1",
+    "title": "补齐映射方法",
+    "explanation": "本章对应工具提交后的确切版本；尚未提供测试证据。",
+    "actions": [{"type":"show_diff","path":"Mapper.java"}]
+  },
+  "playback": {"revision": 1, "selectedID":"event-1", "viewedIDs":[], "narrations":{}}
+}

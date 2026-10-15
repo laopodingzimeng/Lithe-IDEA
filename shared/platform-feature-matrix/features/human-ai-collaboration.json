@@ -2,7 +2,7 @@
   "id": "human-ai-collaboration",
   "area": "AI",
   "group": "人机协作",
-  "capability": "Pi SDK 桌面协作：独立角色模型、受控项目工具、逐次修改收据与接管；A 方案主编辑器、任务预览与小窗（双模型完整流程开发中）",
+  "capability": "Pi SDK 桌面协作：开发与演示独立服务商模型、受控项目工具、逐次收据、隔离 Java 验证、事实章节与历史快照回放；A 方案主编辑器及任务小窗（全流程开发中）",
   "macos": {
     "evidence": [
       "rust/lithe-core/src/collaboration",
@@ -24,7 +24,11 @@
       "shared/contracts/pi-bridge.md",
       "macos/Sources/Lithe/Core/Ports/PiAgent.swift",
       "macos/Sources/Lithe/Platform/MacOS/Collaboration/MacPiAgentRunner.swift",
-      "scripts/test-pi-bridge.mjs"
+      "scripts/test-pi-bridge.mjs",
+      "macos/Sources/Lithe/Application/Features/CollaborationPlaybackModel.swift",
+      "macos/Sources/Lithe/Platform/MacOS/Collaboration/MacCollaborationVerifier.swift",
+      "macos/Tests/LitheTests/CollaborationPlaybackTests.swift",
+      "shared/contracts/collaboration-recording.md"
     ],
     "implementationStatus": "partial",
     "verificationStatus": "pending"
@@ -37,5 +41,5 @@
     "verificationStatus": "not-applicable"
   },
   "owner": "Agent",
-  "verification": "Node 真实 Pi SDK 三种协议、受控工具、取消和 macOS 子进程写隔离已通过本地测试；原生 CollaborationExecutionTests 新增逐工具撤销与接管回归，固定 Swift 工具链 CI 和桌面实际流程待验收。运行包安装、完整双模型演示、Windows 对等实现仍在开发，不能据 Node 通过标为完整可用。"
+  "verification": "Node 真实 Pi SDK 与 macOS 原生初次编译已通过；首次原生回归发现逐工具撤销协议字段问题，已修复待重验。新隔离 Java 验证、历史快照回放、独立供应商模型和播放游标需下一轮原生 CI 与桌面体验验收。运行包安装及 Windows 对等实现仍在开发。"
 }

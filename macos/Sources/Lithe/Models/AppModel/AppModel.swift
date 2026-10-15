@@ -16,9 +16,11 @@ final class AppModel: ObservableObject, Identifiable, UnsavedDocumentHandling {
     let id = UUID()
     lazy var aiProviderDiagnostics = AIProviderDiagnosticsFeatureModel(service: services.aiProviderDiagnostics)
     lazy var collaborationProviderDiagnostics = AIProviderDiagnosticsFeatureModel(service: services.aiProviderDiagnostics)
+    lazy var collaborationPresentationDiagnostics = AIProviderDiagnosticsFeatureModel(service: services.aiProviderDiagnostics)
     lazy var collaborationFeature = CollaborationFeatureModel(
         operations: services.collaborationPlans, store: services.store, files: services.fileStorage,
-        generator: services.collaborationGenerator, editing: services.collaborationWorkspace, pi: services.piAgent
+        generator: services.collaborationGenerator, editing: services.collaborationWorkspace, pi: services.piAgent,
+        verifier: services.collaborationVerifier
     )
     lazy var ideCapabilities = IdeCapabilitiesFeatureModel(model: self)
     @Published var isChangingAgentProvider = false
@@ -633,6 +635,7 @@ final class AppModel: ObservableObject, Identifiable, UnsavedDocumentHandling {
     func shutdownProjectSession() async {
         await aiProviderDiagnostics.shutdown()
         await collaborationProviderDiagnostics.shutdown()
+        await collaborationPresentationDiagnostics.shutdown()
         await collaborationFeature.shutdown()
         await ideCapabilities.shutdown()
         shortcutSessionCoordinator?.shutdown()

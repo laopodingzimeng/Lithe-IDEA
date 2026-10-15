@@ -126,6 +126,8 @@ struct UnavailableCollaborationGenerator: CollaborationGenerating {
 protocol CollaborationWorkspaceEditing: Sendable {
     func loadSession(workspace: URL) throws -> Data?
     func saveSession(_ data: Data?, workspace: URL) throws
+    func loadPlayback(workspace: URL) throws -> Data?
+    func savePlayback(_ data: Data?, workspace: URL) throws
     func snapshot(paths: [String], workspace: URL) throws -> [CollaborationFile]
     /// Explicitly starting a human-owned whole-file target may create an empty
     /// file; it never generates business code or overwrites existing content.
@@ -139,6 +141,8 @@ extension CollaborationWorkspaceEditing {
     func prepareHumanFile(path: String, workspace: URL) throws { throw CollaborationFailure.unavailable }
     func loadSession(workspace: URL) throws -> Data? { nil }
     func saveSession(_ data: Data?, workspace: URL) throws { }
+    func loadPlayback(workspace: URL) throws -> Data? { nil }
+    func savePlayback(_ data: Data?, workspace: URL) throws { }
 }
 struct UnavailableCollaborationWorkspace: CollaborationWorkspaceEditing {
     func snapshot(paths: [String], workspace: URL) throws -> [CollaborationFile] { throw CollaborationFailure.unavailable }

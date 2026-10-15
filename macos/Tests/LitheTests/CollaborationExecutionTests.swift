@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import LitheCoreContracts
+import LitheExecutionModule
 @testable import Lithe
 
 /// Native integration tests use only temporary files and a deterministic model response.
@@ -161,9 +162,11 @@ struct CollaborationExecutionTests {
         #expect(try adapter.pending(workspace: workspace) == nil)
         feature.perform("pause")
         await feature.undo { try adapter.apply($0, workspace: workspace) }?.value
+        #expect(feature.error == nil)
         #expect(feature.receipts.count == 1)
         #expect(try String(contentsOf: workspace.appendingPathComponent("Order.java"), encoding: .utf8).contains("return \"first\";"))
         await feature.undo { try adapter.apply($0, workspace: workspace) }?.value
+        #expect(feature.error == nil)
         #expect(feature.receipts.isEmpty)
         #expect(try String(contentsOf: workspace.appendingPathComponent("Order.java"), encoding: .utf8) == source)
     }
@@ -213,6 +216,50 @@ struct CollaborationExecutionTests {
             #expect(throws: AgentEditRestoreError.self) { try adapter.prepareHumanFile(path: "../outside.java", workspace: root) }
             #expect(try adapter.pending(workspace: root) == nil, "Human creation is not an AI modification receipt")
         }
+    }
+
+    @MainActor @Test(.timeLimit(.minutes(1)))
+    func isolatedVerificationReusesTestServiceAndCannotModifyOriginalSource() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let workspace = root.appendingPathComponent("project")
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        let original = workspace.appendingPathComponent("Order.java")
+        try Data(source.utf8).write(to: original)
+        try Data("<project><modelVersion>4.0.0</modelVersion></project>".utf8).write(to: workspace.appendingPathComponent("pom.xml"))
+        let script = root.appendingPathComponent("fixture-maven")
+        let quoted = "'" + original.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        let command = """
+        #!/bin/sh
+        if printf 'overwritten' > \(quoted); then exit 21; fi
+        mkdir -p target
+        printf 'snapshot test ran' > target/fixture-result
+        printf 'fixture checks completed'
+        """
+        try Data(command.utf8).write(to: script)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let storage = CollaborationDiskStorage(root: root.appendingPathComponent("state with spaces"))
+        let resolver = CollaborationFixtureExecutable(url: script)
+        let verifier = MacCollaborationVerifier(files: storage) { process in
+            LanguageTestService(executableResolver: resolver, processFactory: { process })
+        }
+        let result = try await verifier.verify(workspace: workspace, actionID: "java-tests")
+        #expect(result.outcome == "passed")
+        #expect(result.exitCode == 0)
+        #expect(result.output.contains("fixture checks completed"))
+        #expect(result.sourceRevision.count == 64)
+        #expect(try String(contentsOf: original, encoding: .utf8) == source)
+        let sessions = storage.cacheDirectory().appendingPathComponent("Lithe/Pi/Validation")
+        #expect(storage.listDirectory(at: sessions).isEmpty)
+    }
+}
+
+@MainActor private final class CollaborationFixtureExecutable: RunExecutableResolving {
+    let url: URL
+    init(url: URL) { self.url = url }
+    func resolve(_ plan: SharedLaunchPlan, projectURL: URL, options: RunOptions) throws -> ResolvedRunExecutable {
+        .init(executableURL: url, environment: ["PATH": "/usr/bin:/bin"])
     }
 }
 

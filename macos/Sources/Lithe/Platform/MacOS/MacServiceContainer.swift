@@ -669,6 +669,15 @@ final class MacServiceContainer {
                 transport: MacURLSessionTransport(), credentialResolver: credentialResolver)),
             collaborationWorkspace: MacCollaborationWorkspace(files: fileStorage, documents: fileOperations),
             piAgent: MacPiAgentRunner(files: fileStorage, credentials: credentialResolver),
+            collaborationVerifier: MacCollaborationVerifier(files: fileStorage, makeTests: { process in
+                LanguageTestService(catalog: languagePackRegistry.catalog, registry: languagePackRegistry.testProviders,
+                    executableResolver: providedRunExecutableResolver ?? RunExecutableResolver(
+                        runtimeService: runtimeService, toolchainRegistry: runToolchainRegistry,
+                        metadataResolver: ProcessRunToolchainMetadataResolver(processRunner: processRunner)),
+                    processFactory: { process }, resultParser: { output, rootURL, reports in
+                        javaMavenOperations.mavenTestResults(output: output, projectRoot: rootURL, reports: reports)
+                    })
+            }),
             aiProviderDiagnostics: AIProviderDiagnosticsService(transport: MacURLSessionTransport(), credentials: credentialResolver)
         )
         services.ideCapabilityRegistry = ideCapabilityRegistry

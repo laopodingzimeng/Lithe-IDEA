@@ -7,6 +7,7 @@ export const LIMITS = Object.freeze({
   textChars: 1_000_000,
   toolCalls: 200,
   toolTimeoutMs: 60_000,
+  verificationTimeoutMs: 180_000,
   runTimeoutMs: 600_000,
 });
 

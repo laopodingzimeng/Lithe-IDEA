@@ -13,6 +13,7 @@ struct CollaborationWorkspaceView: View {
     var body: some View {
         VStack(spacing: 0) {
             if feature.plan != nil { activityBar }
+            if feature.plan != nil { CollaborationPlaybackBar(playback: feature.playback, presentation: presentation) }
             LitheSplitPaneView(axis: .vertical, placement: .trailing,
                 defaultSize: 192, minimum: 120, maximum: 320, flexibleMinimum: 160,
                 clipsSizedPane: true, isSizedPaneCollapsed: !hasTasks || presentation.dockCollapsed,
@@ -26,6 +27,7 @@ struct CollaborationWorkspaceView: View {
                                 .background(LitheTheme.editor)
                             }
                         }
+                        .overlay { CollaborationPlaybackOverlay(playback: feature.playback) }
                 })
         }
         .background {
@@ -106,6 +108,13 @@ struct CollaborationWorkspaceView: View {
         presentation.select(preview.id)
         model.openCollaborationTarget(path)
         expandedID = nil
+    }
+}
+
+private struct CollaborationPlaybackOverlay: View {
+    @ObservedObject var playback: CollaborationPlaybackModel
+    var body: some View {
+        if playback.mode == .replay { CollaborationPlaybackInspector(playback: playback) }
     }
 }
 

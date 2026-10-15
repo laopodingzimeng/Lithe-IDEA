@@ -50,7 +50,7 @@
 ### [P1] 桌面后台进程与文件工具
 
 - **内容：** 平台进程、受控读写、项目查找、逐次修改收据、验证任务与恢复
-- **进度：** doing
+- **进度：** review
 - **结束验收标准：** 主编辑器真实创建修改；脏缓冲区和核心范围受保护；退出清理
 - **交付标准：** 原生 adapter、端口、集成测试
 - **会用到的 MCP：** none
@@ -58,14 +58,14 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** 实现原生 Pi 进程适配、逐工具修改记录和受控编辑器提交。
+- **备注：** 原生进程、受控工具、逐次收据、隔离 Java 验证已编码；CI 38726337272 编译中，新增验证适配器需下一轮编译；不标记验收完成。等待期间继续 P2 独立展示层。
 
 ---
 
 ### [P2] 双模型异步演示与回放
 
 - **内容：** 独立演示会话；事实记录；版本快照；章节；播放游标；失败降级
-- **进度：** todo
+- **进度：** doing
 - **结束验收标准：** 演示暂停和故障不阻塞开发；历史版本和讲解一致
 - **交付标准：** 异步服务、持久化、状态测试
 - **会用到的 MCP：** none
@@ -73,7 +73,7 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** 用户已授权全部功能，按已确认方案执行
+- **备注：** 实现不可变收据引用、事实章节、独立讲解队列与播放游标。
 
 ---
 

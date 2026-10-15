@@ -31,7 +31,7 @@
     {
       "id": "pi-worker-state",
       "reusable": false,
-      "locations": ["<Application Support>/Lithe/Pi/Sessions/<workspace-sha256>/<run-id>/", "integrations/pi-bridge/node_modules/"],
+      "locations": ["<Application Support>/Lithe/Pi/Sessions/<workspace-sha256>/<run-id>/", "<Caches>/Lithe/Pi/Validation/<execution-id>/", "integrations/pi-bridge/node_modules/"],
       "identity": "One workspace/role/run owns mutable worker state; npm install state is tied to the exact lockfile, Node ABI, OS and architecture and has no sealed reuse identity stamp",
       "reason": "Worker state is created by the platform adapter outside the app bundle and removed after the managed process tree exits. The dependency installation belongs to one checkout and must be recreated with npm ci --ignore-scripts. Neither is eligible for copying at any worktree stage; the registry rejection route enforces this."
     },
