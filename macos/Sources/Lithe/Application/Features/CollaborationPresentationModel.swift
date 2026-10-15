@@ -16,11 +16,12 @@ final class CollaborationTaskPreview: ObservableObject, Identifiable {
 
 @MainActor
 final class CollaborationPresentationModel: ObservableObject {
-    struct Navigation: Equatable { let id = UUID(); let path: String }
+    struct Navigation: Hashable { let id = UUID(); let path: String }
     @Published private(set) var tasks: [CollaborationTaskPreview] = []
     @Published private(set) var selectedID: String?
     @Published private(set) var followsActivity = true
     @Published private(set) var navigation: Navigation?
+    @Published private(set) var editingRevision = 0
     @Published var dockCollapsed = false
     var selected: CollaborationTaskPreview? { tasks.first { $0.id == selectedID } }
 
@@ -36,7 +37,7 @@ final class CollaborationPresentationModel: ObservableObject {
         selectedID = id; followsActivity = false
     }
     func follow() { followsActivity = true }
-    func userDidEdit() { followsActivity = false }
+    func userDidEdit() { followsActivity = false; editingRevision += 1 }
     func requestOpen(_ path: String) {
         guard followsActivity else { return }
         navigation = Navigation(path: path)

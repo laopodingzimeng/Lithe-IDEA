@@ -170,6 +170,7 @@ final class CollaborationFeatureModel: ObservableObject {
             let next = try operations.transition(plan, action: action)
             try persist(workflow: workflow, plan: next, evidence: nextEvidence)
             self.plan = next; evidence = nextEvidence; error = nil
+            if plan.step?.id != next.step?.id { questionAnswer = "" }
             if kind == "start", let path = next.step?.targets.first?.path { presentation.requestOpen(path) }
             if plan.step?.id != next.step?.id || kind == "resolveQuestions" || kind == "workFinished" {
                 resetInputs()
@@ -220,7 +221,7 @@ final class CollaborationFeatureModel: ObservableObject {
     func cancel() {
         let pending = task
         generation = UUID(); pending?.cancel(); presentation.cancel()
-        generation = UUID(); let operation = generation
+        let operation = generation
         if let pending {
             busy = true; activityTitle = "正在停止当前请求"
             task = Task { [weak self] in

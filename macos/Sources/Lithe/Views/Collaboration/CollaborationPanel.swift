@@ -267,7 +267,10 @@ struct CollaborationPanel: View {
                     ProgressView().controlSize(.small)
                     Text(feature.activityTitle).font(LitheTheme.uiFont(size: 11))
                     Spacer(minLength: 0)
-                    Button("我来写") { feature.takeOver() }.buttonStyle(.plain).foregroundStyle(LitheTheme.accent)
+                    Button(feature.plan == nil ? "取消" : "我来写") {
+                        if feature.plan == nil || feature.plan?.phase == .complete { feature.cancel() }
+                        else { feature.takeOver() }
+                    }.buttonStyle(.plain).foregroundStyle(LitheTheme.accent)
                 }
                 hint("草稿实时展示在编辑器下方；每个模型请求最多 180 秒。")
             } else if !feature.hasPendingWrite {

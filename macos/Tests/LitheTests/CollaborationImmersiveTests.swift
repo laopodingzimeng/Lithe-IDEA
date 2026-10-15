@@ -92,6 +92,51 @@ struct CollaborationImmersiveTests {
         #expect(throws: CollaborationFailure.self) { try workflow.validate() }
     }
 
+    @MainActor @Test func planningDiscoversExistingCodeAndRejectsUnlistedSelections() async throws {
+        for path in ["Map0.java", "unlisted.java"] {
+            let generator = ImmersiveSelectionGenerator(path: path, workflow: try JSONEncoder().encode(workflow()))
+            let feature = CollaborationFeatureModel(operations: RustCollaborationPlanOperations(core: RustCoreBridge()),
+                store: ImmersiveMemoryStore(), files: UnavailableFileStorage(), generator: generator, editing: ImmersiveDiscoveryWorkspace())
+            feature.bind(workspace: URL(fileURLWithPath: "/fixture/project"))
+            feature.requirementText = "维护映射"
+            await feature.generatePlan(context: "", settings: .default, projectPaths: ["Map0.java", ".env", "secret.key"])?.value
+            if path == "Map0.java" {
+                #expect(feature.plan?.phase == .draft)
+                #expect(await generator.prompts.last?.contains("existingMapping") == true)
+            } else {
+                #expect(feature.plan == nil && feature.error != nil)
+                #expect(await generator.prompts.count == 1)
+            }
+            #expect(await generator.prompts.first?.contains(".env") == false)
+            #expect(await generator.prompts.first?.contains("secret.key") == false)
+            await feature.shutdown()
+        }
+    }
+
+    @Test func workerCannotReturnChangesForAnotherConfirmedGroup() async throws {
+        let target = CollaborationTarget(kind: "file", path: "Map0.java")
+        do {
+            _ = try await CollaborationDraftService(generator: ImmersiveCrossGroupGenerator()).generate(groups: [[target]],
+                system: "fixture", prompt: "fixture", context: "[]", settings: .default, onEvent: { _ in })
+            Issue.record("Cross-group edit was accepted")
+        } catch { #expect(error is CollaborationFailure) }
+    }
+
+    @MainActor @Test func dirtyReadBarrierStopsGenerationBeforeAnyRequest() async throws {
+        let generator = ImmersiveControlledGenerator()
+        let feature = CollaborationFeatureModel(operations: RustCollaborationPlanOperations(core: RustCoreBridge()),
+            store: ImmersiveMemoryStore(), files: UnavailableFileStorage(), generator: generator, editing: ImmersiveWorkspace())
+        feature.bind(workspace: URL(fileURLWithPath: "/fixture/project"))
+        feature.importWorkflow(data: try JSONEncoder().encode(workflow()))
+        feature.perform("confirm"); feature.perform("start")
+        var writes = 0
+        await feature.execute(settings: .default, prepareRead: { throw AgentEditRestoreError.dirtyBuffer }) { _ in writes += 1 }?.value
+        #expect(await generator.count == 0)
+        #expect(writes == 0 && feature.error != nil)
+        #expect(feature.presentation.tasks.allSatisfy { $0.state == .failed })
+        await feature.shutdown()
+    }
+
     @Test func parallelGenerationIsBoundedAndResultsKeepConfirmedOrder() async throws {
         let model = ImmersiveControlledGenerator()
         let targets = (0..<5).map { CollaborationTarget(kind: "file", path: "Map\($0).java") }
@@ -184,6 +229,32 @@ private struct ImmersiveWorkspace: CollaborationWorkspaceEditing {
     func apply(_ intent: CollaborationPendingWrite, workspace: URL) throws {}
     func finish(workspace: URL) throws {}
     func rollback(workspace: URL) throws {}
+}
+private struct ImmersiveDiscoveryWorkspace: CollaborationWorkspaceEditing {
+    func snapshot(paths: [String], workspace: URL) throws -> [CollaborationFile] {
+        guard paths == ["Map0.java"] else { throw CollaborationFailure.invalidState }
+        return [.init(path: "Map0.java", text: "class Mapping { int existingMapping() { return 1; } }")]
+    }
+    func pending(workspace: URL) throws -> CollaborationPendingWrite? { nil }
+    func apply(_ intent: CollaborationPendingWrite, workspace: URL) throws {}
+    func finish(workspace: URL) throws {}
+    func rollback(workspace: URL) throws {}
+}
+private actor ImmersiveSelectionGenerator: CollaborationGenerating {
+    let path: String
+    let workflow: Data
+    private(set) var prompts: [String] = []
+    init(path: String, workflow: Data) { self.path = path; self.workflow = workflow }
+    func generate(system: String, prompt: String, settings: CommitMessageAISettings) async throws -> String {
+        prompts.append(prompt)
+        if prompts.count == 1 { return String(decoding: try JSONEncoder().encode(["paths": [path]]), as: UTF8.self) }
+        return String(decoding: workflow, as: UTF8.self)
+    }
+}
+private struct ImmersiveCrossGroupGenerator: CollaborationGenerating {
+    func generate(system: String, prompt: String, settings: CommitMessageAISettings) async throws -> String {
+        #"{"changes":[{"target":{"kind":"file","path":"Other.java"},"expectedText":null,"replacement":"wrong"}]}"#
+    }
 }
 private final class ImmersiveMemoryStore: KeyValueStore {
     private var values: [String: Any] = [:]

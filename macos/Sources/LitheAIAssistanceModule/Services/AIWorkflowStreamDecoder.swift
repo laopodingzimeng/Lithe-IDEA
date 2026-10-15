@@ -60,7 +60,7 @@ final class AIWorkflowStreamDecoder: @unchecked Sendable {
             guard text.utf8.count <= 1_048_576 else { failed = true; return }
             // Bound UI publications without timers or fabricated typing. The
             // final publication below includes a short last fragment.
-            if text.utf8.count - published >= 256 || text.hasSuffix("\n") {
+            if text.utf8.count > published && (text.utf8.count - published >= 256 || text.hasSuffix("\n")) {
                 published = text.utf8.count
                 onText(text)
             }
