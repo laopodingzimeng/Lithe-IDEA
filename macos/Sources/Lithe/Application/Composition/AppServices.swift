@@ -58,6 +58,9 @@ final class AppServices {
     let workbenchLayoutStore: WorkbenchLayoutStore
     let workbenchBackgroundPlatform: any WorkbenchBackgroundPlatformProviding
     let directoryWatcherFactory: any DirectoryWatcherFactory
+    let collaborationGenerator: any CollaborationGenerating
+    let collaborationWorkspace: any CollaborationWorkspaceEditing
+    let collaborationPlans: any CollaborationPlanOperating
     let platformUI: any PlatformUI
     let shortcutDetectorFactory: any ShortcutDetectorFactory
 
@@ -101,7 +104,10 @@ final class AppServices {
         workbenchBackgroundPlatform: any WorkbenchBackgroundPlatformProviding,
         directoryWatcherFactory: any DirectoryWatcherFactory,
         platformUI: any PlatformUI,
-        shortcutDetectorFactory: any ShortcutDetectorFactory
+        shortcutDetectorFactory: any ShortcutDetectorFactory,
+        collaborationPlans: any CollaborationPlanOperating = UnavailableCollaborationPlanOperations(),
+        collaborationGenerator: any CollaborationGenerating = UnavailableCollaborationGenerator(),
+        collaborationWorkspace: any CollaborationWorkspaceEditing = UnavailableCollaborationWorkspace()
     ) {
         self.moduleRuntime = moduleRuntime
         self.pluginManager = pluginManager
@@ -150,6 +156,9 @@ final class AppServices {
         self.workbenchLayoutStore = workbenchLayoutStore
         self.workbenchBackgroundPlatform = workbenchBackgroundPlatform
         self.directoryWatcherFactory = directoryWatcherFactory
+        self.collaborationPlans = collaborationPlans
+        self.collaborationGenerator = collaborationGenerator
+        self.collaborationWorkspace = collaborationWorkspace
         self.platformUI = platformUI
         self.shortcutDetectorFactory = shortcutDetectorFactory
     }

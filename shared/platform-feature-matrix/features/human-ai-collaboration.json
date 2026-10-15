@@ -2,12 +2,18 @@
   "id": "human-ai-collaboration",
   "area": "AI",
   "group": "人机协作",
-  "capability": "人工主导的分步开发：Core 已提供版本化计划转换、Java 方法体范围校验和保留其他人工改动的撤销准备；独立任务面板、受控模型执行、原生写入事务、持久化与真实开发闭环尚未接入",
+  "capability": "人工主导协作：原生计划面板与工作流版本管理，受限 HTTP 模型生成计划/补丁/代码分析，Core 方法范围保护，原生写入恢复与冲突撤销，复用 Java 测试入口；待 GitHub 原生编译和运行验证",
   "macos": {
     "evidence": [
       "rust/lithe-core/src/collaboration",
       "shared/contracts/collaboration.md",
-      "shared/fixtures/agent/collaboration-v1.json"
+      "shared/fixtures/agent/collaboration-v1.json",
+      "macos/Sources/Lithe/Views/Collaboration/CollaborationPanel.swift",
+      "macos/Sources/Lithe/Application/Features/CollaborationFeatureModel.swift",
+      "macos/Tests/LitheTests/CollaborationFeatureModelTests.swift",
+      "docs/native-collaboration.md",
+      "macos/Sources/Lithe/Platform/MacOS/Collaboration/MacCollaborationWorkspace.swift",
+      "macos/Tests/LitheTests/CollaborationExecutionTests.swift"
     ],
     "implementationStatus": "partial",
     "verificationStatus": "pending"
@@ -20,5 +26,5 @@
     "verificationStatus": "not-applicable"
   },
   "owner": "Agent",
-  "verification": "Core：运行 cargo test --manifest-path rust/Cargo.toml -p lithe-core collaboration::，验证确认、交接、验收、暂停过期、同文件方法分工、嵌套方法保护及冲突撤销。macOS 完整能力仍待接入：用真实 Spring Boot 项目完成计划确认、配套生成、人工开发、检查和测试；证明 Agent 命令不能绕过修改入口，且未保存修改、崩溃恢复与撤销保留人工代码。Windows 原生协作流程尚未实现。"
+  "verification": "GitHub 执行 Collaboration 与 CommitMessageGeneration 原生测试后构建 arm64 DMG。桌面验证：分析需求、确认分工、执行映射、人工修改、代码分析、测试、撤销；重启恢复及工作流版本回退。静态门禁与 Core 20 项测试已通过。真实供应商端到端和桌面人工验收仍待验证。"
 }

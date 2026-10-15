@@ -530,6 +530,13 @@ struct LitheApp: App {
                 }
             }
 
+            CommandMenu("协作") {
+                Button("打开协作面板") { model.showCollaboration() }
+                    .disabled(model.workspaceURL == nil)
+                Button("导入工作流…") { model.importCollaborationWorkflow() }
+                    .disabled(model.workspaceURL == nil)
+            }
+
             CommandMenu("Navigate") {
                 Group {
                     Button("Back") {

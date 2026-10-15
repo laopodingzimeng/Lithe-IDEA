@@ -77,6 +77,7 @@ async function readRegistry() {
     }
     identifiers.add(resource.id);
   }
+  // Includes collaboration journals and preferences: mutable workspace authority, never cache inputs.
   const excludedResources = registry.excludedResources ?? [];
   if (!Array.isArray(excludedResources)) throw new Error("Invalid excluded worktree resources");
   for (const resource of excludedResources) {
