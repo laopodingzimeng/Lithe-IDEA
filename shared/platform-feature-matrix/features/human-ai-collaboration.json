@@ -2,7 +2,7 @@
   "id": "human-ai-collaboration",
   "area": "AI",
   "group": "人机协作",
-  "capability": "Pi SDK 桌面协作：只读需求探索、显式任务依赖与文件冲突排队、有界并发、开发和演示独立模型、逐次收据、隔离 Java 验证、事实章节与历史回放（全流程开发中）",
+  "capability": "Pi SDK 桌面协作：独立开发/演示供应商、真实工具能力测试、可配置调用预算、只读需求探索、依赖任务组与有界并发、逐次收据和历史回放（全流程开发中）",
   "macos": {
     "evidence": [
       "rust/lithe-core/src/collaboration",
@@ -32,7 +32,11 @@
       "rust/lithe-core/src/collaboration/schedule.rs",
       "shared/fixtures/collaboration/schedule-v2.json",
       "macos/Sources/Lithe/Services/CollaborationPiExecution.swift",
-      "macos/Tests/LitheTests/CollaborationSchedulingTests.swift"
+      "macos/Tests/LitheTests/CollaborationSchedulingTests.swift",
+      "macos/Sources/Lithe/Services/CollaborationPiDiagnostics.swift",
+      "macos/Sources/Lithe/Application/Features/CollaborationPiDiagnosticsModel.swift",
+      "macos/Sources/Lithe/Views/Collaboration/CollaborationBudgetsView.swift",
+      "macos/Tests/LitheTests/CollaborationModelDiagnosticsTests.swift"
     ],
     "implementationStatus": "partial",
     "verificationStatus": "pending"
@@ -45,5 +49,5 @@
     "verificationStatus": "not-applicable"
   },
   "owner": "Agent",
-  "verification": "061e29e2 的原生 CI 38731121279 已通过 98 项测试。3090013e 的任务调度 CI 38733328474 因旧串行审查分支误用并发下标而编译失败，本次恢复首任务引用后重验。Rust Core 889 项与此版本 Node 15 项已通过；运行包、完整桌面体验与 Windows 未完成。"
+  "verification": "061e29e2 原生 CI 38731121279 已通过 98 项测试；cc31e0b5 的任务调度修复正在 CI 38734911650 验证。当前 SDK 22 项测试通过，包含三协议认证、用量停止和跨角色隔离。原生能力诊断、配置迁移、预算界面与显式讲解队列等待目标工具链 CI；运行包、完整桌面体验与 Windows 未完成。"
 }

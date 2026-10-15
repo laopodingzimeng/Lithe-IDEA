@@ -13,6 +13,8 @@ struct PiAgentRequest: Sendable {
     let system: String
     let prompt: String
     var timeoutSeconds: Int = 600
+    var maximumOutputTokens: Int = 8192
+    var tokenBudget: Int = 200_000
 }
 
 struct PiToolArguments: Codable, Sendable {
@@ -59,7 +61,7 @@ enum PiAgentFailure: String, LocalizedError, Sendable {
         case .modelFailed: "模型请求失败，请测试此角色的连接、协议和模型权限。"
         case .toolDenied: "该操作不在当前任务的授权范围内。"
         case .timedOut: "任务达到本次运行预算，已停止；已有修改保留在记录中。"
-        case .outputLimit: "任务输出达到容量上限，已停止；已有修改保留在记录中。"
+        case .outputLimit: "本轮调用或输出达到预算上限，已停止；已有修改保留在记录中。"
         case .processFailed: "Pi 进程未能正常退出。任务已停止，请检查修改记录。"
         }
     }

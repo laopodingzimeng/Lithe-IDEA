@@ -63,6 +63,25 @@ struct CollaborationPlaybackTests {
         await playback.shutdown()
     }
 
+    @MainActor @Test(.timeLimit(.minutes(1)))
+    func explicitNarrationQueuedBehindAnActiveRequestSurvivesAutomaticBudgetExhaustion() async throws {
+        let runner = PlaybackControlledPi()
+        let playback = CollaborationPlaybackModel(pi: runner)
+        let first = receipt("first", text: "first version"), second = receipt("second", text: "second version")
+        playback.configure(workspace: URL(fileURLWithPath: "/fixture/project"), provider: provider, automaticLimit: 1)
+        playback.synchronize(facts: [fact(1, receipt: first)], receipts: [first])
+        defer { runner.release.open() }
+        #expect(await runner.started.waitUntilOpen())
+        playback.synchronize(facts: [fact(1, receipt: first), fact(2, receipt: second)], receipts: [first, second])
+        playback.select("event-2")
+        let requested = playback.explainSelected()
+        runner.release.open()
+        await requested?.value
+        #expect(playback.selected?.narration?.sourceEventIDs == ["event-2"])
+        #expect(playback.selectedReceipt?.after.first?.text == "second version")
+        await playback.shutdown()
+    }
+
     @Test func modelRolesKeepIndependentSuppliersAndDoNotSilentlyReplaceDeletedBindings() {
         var settings = CommitMessageAISettings.default
         let a = AIProviderProfile(name: "A", endpoint: "https://a.example.test/v1", model: "code", apiProtocol: .responses)

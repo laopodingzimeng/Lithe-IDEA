@@ -9,6 +9,7 @@ export function validateConfiguration(input) {
   requireValue(['openai-completions', 'openai-responses', 'anthropic-messages'].includes(model.api));
   requireValue(typeof model.id === 'string' && model.id.length > 0 && model.id.length <= 256);
   requireValue(typeof model.apiKey === 'string' && model.apiKey.length > 0 && model.apiKey.length <= 16_384);
+  requireValue(model.authentication === undefined || ['bearer', 'apiKey', 'none'].includes(model.authentication));
   let endpoint;
   try { endpoint = new URL(model.baseUrl); } catch { requireValue(false); }
   requireValue(endpoint.protocol === 'https:' || (endpoint.protocol === 'http:' && model.allowInsecureHTTP === true), 'insecure_endpoint');
@@ -26,7 +27,8 @@ export function validateConfiguration(input) {
   return { ...input, model: { ...model,
     contextWindow: boundedInteger(model.contextWindow, 128_000, 4096, 2_000_000),
     maxTokens: boundedInteger(model.maxTokens, 8192, 128, 64_000),
-  }, runTimeoutMs: boundedInteger(input.runTimeoutMs, 600_000, 1000, 3_600_000) };
+  }, runTimeoutMs: boundedInteger(input.runTimeoutMs, 600_000, 1000, 3_600_000),
+    tokenBudget: boundedInteger(input.tokenBudget, 200_000, 128, 2_000_000) };
 }
 
 class EphemeralCredentials {
@@ -57,6 +59,23 @@ export async function createSession(configuration, broker, stateDirectory) {
       ...(config.api === 'openai-completions' ? { compat: { supportsStore: false, supportsDeveloperRole: false } } : {}),
     }],
   });
+  const composed = runtime.getProvider(provider);
+  requireValue(composed, 'model_unavailable');
+  // Keep Pi's complete provider/API implementation, supplying only literal auth
+  // through its public native-provider hook. Credential characters are never
+  // interpreted as models.json commands or environment-variable expressions.
+  runtime.registerNativeProvider({ ...composed, auth: { apiKey: {
+    name: 'Lithe host credential',
+    resolve: async ({ credential, signal }) => {
+      signal.throwIfAborted();
+      if (!credential?.key) return undefined;
+      const authentication = config.authentication ?? (config.api === 'anthropic-messages' ? 'apiKey' : 'bearer');
+      const headers = { Authorization: null, 'x-api-key': null };
+      if (authentication === 'bearer') headers.Authorization = `Bearer ${credential.key}`;
+      if (authentication === 'apiKey') headers['x-api-key'] = credential.key;
+      return { auth: { apiKey: 'lithe-header-owned-auth', headers }, source: 'host memory' };
+    },
+  } } });
   await runtime.setRuntimeApiKey(provider, config.apiKey);
   const model = runtime.getModel(provider, config.id);
   requireValue(model, 'model_unavailable');

@@ -6,6 +6,7 @@ struct CollaborationRoleSelector: View {
     @ObservedObject var feature: CollaborationFeatureModel
     @ObservedObject var settings: AppSettings
     @ObservedObject var diagnostics: AIProviderDiagnosticsFeatureModel
+    @ObservedObject var piDiagnostics: CollaborationPiDiagnosticsModel
     private var provider: AIProviderProfile? { feature.modelSettings.provider(for: role, in: settings.commitMessageAI) }
     private var isPresentation: Bool { role == .presentation }
     var body: some View {
@@ -44,19 +45,20 @@ struct CollaborationRoleSelector: View {
                 } label: { Text("模型") }
                     .buttonStyle(LitheSecondaryButtonStyle(horizontalPadding: 8, height: 28, fontSize: 11))
                     .disabled(provider == nil || diagnostics.busy)
-                Button(diagnostics.busy ? "取消" : "测试") {
-                    if diagnostics.busy { diagnostics.cancel() } else { diagnostics.testConnection() }
+                Button(piDiagnostics.state == .loading ? "取消" : "能力测试") {
+                    if piDiagnostics.state == .loading { piDiagnostics.cancel() }
+                    else { piDiagnostics.test(role: role, workspace: feature.workspaceURL) }
                 }.buttonStyle(.plain).disabled(provider == nil)
             }
-            if diagnostics.connectionState == .ready {
-                Text("短消息测试通过").foregroundStyle(LitheTheme.success)
+            if let message = piDiagnostics.message {
+                Text(message).foregroundStyle(piDiagnostics.state == .ready ? LitheTheme.success : LitheTheme.warning)
             }
             if let error = diagnostics.connectionError ?? diagnostics.modelError { Text(error).foregroundStyle(LitheTheme.warning) }
         }
         .font(LitheTheme.uiFont(size: 10))
-        .onAppear { diagnostics.bind(provider) }
-        .onChange(of: provider) { diagnostics.bind($0) }
-        .onDisappear { diagnostics.cancel() }
+        .onAppear { diagnostics.bind(provider); piDiagnostics.bind(provider) }
+        .onChange(of: provider) { diagnostics.bind($0); piDiagnostics.bind($0) }
+        .onDisappear { diagnostics.cancel(); piDiagnostics.cancel() }
     }
 }
 

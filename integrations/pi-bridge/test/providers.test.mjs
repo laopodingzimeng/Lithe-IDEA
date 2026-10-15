@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { configuration, controllerFixture, providerFixture } from './fixtures.mjs';
 
-test('real Pi Anthropic adapter streams from an independently configured endpoint', async t => {
+for (const authentication of ['bearer', 'apiKey', 'none']) test(`real Pi Anthropic adapter routes ${authentication} authentication literally`, async t => {
   const provider = await providerFixture(t, entry => {
     entry.response.writeHead(200, { 'Content-Type': 'text/event-stream' });
     const events = [
@@ -18,14 +18,16 @@ test('real Pi Anthropic adapter streams from an independently configured endpoin
   });
   const config = configuration(provider.url, 'presentation', 'anthropic-fixture-key');
   config.model.api = 'anthropic-messages';
+  config.model.authentication = authentication;
   const { box, prompt } = await controllerFixture(t, config);
   await prompt();
   assert.equal((await box.wait(value => value.type === 'run_finished')).outcome, 'completed');
-  assert.equal(provider.requests[0].headers['x-api-key'], 'anthropic-fixture-key');
+  assert.equal(provider.requests[0].headers['x-api-key'], authentication === 'apiKey' ? 'anthropic-fixture-key' : undefined);
+  assert.equal(provider.requests[0].authorization, authentication === 'bearer' ? 'Bearer anthropic-fixture-key' : undefined);
   assert.ok(box.events.some(value => value.text === 'Anthropic fixture'));
 });
 
-test('real Pi Responses adapter streams from a custom model endpoint', async t => {
+for (const authentication of ['bearer', 'apiKey', 'none']) test(`real Pi Responses adapter routes ${authentication} authentication literally`, async t => {
   const provider = await providerFixture(t, entry => {
     entry.response.writeHead(200, { 'Content-Type': 'text/event-stream' });
     const item = { id: 'msg_fixture', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'Responses fixture', annotations: [] }] };
@@ -45,9 +47,11 @@ test('real Pi Responses adapter streams from a custom model endpoint', async t =
   });
   const config = configuration(provider.url, 'presentation', 'responses-fixture-key');
   config.model.api = 'openai-responses';
+  config.model.authentication = authentication;
   const { box, prompt } = await controllerFixture(t, config);
   await prompt();
   assert.equal((await box.wait(value => value.type === 'run_finished')).outcome, 'completed');
-  assert.equal(provider.requests[0].authorization, 'Bearer responses-fixture-key');
+  assert.equal(provider.requests[0].authorization, authentication === 'bearer' ? 'Bearer responses-fixture-key' : undefined);
+  assert.equal(provider.requests[0].headers['x-api-key'], authentication === 'apiKey' ? 'responses-fixture-key' : undefined);
   assert.ok(box.events.some(value => value.text === 'Responses fixture'));
 });

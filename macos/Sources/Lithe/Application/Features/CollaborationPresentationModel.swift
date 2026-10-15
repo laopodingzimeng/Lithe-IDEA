@@ -10,6 +10,7 @@ final class CollaborationTaskPreview: ObservableObject, Identifiable {
     let paths: [String]
     @Published var state: State = .waiting
     @Published var text = ""
+    @Published var reportedTokens: Double?
     @Published var minimized = false
     @Published var openPath: String?
     init(id: String, paths: [String]) { self.id = id; self.paths = paths }

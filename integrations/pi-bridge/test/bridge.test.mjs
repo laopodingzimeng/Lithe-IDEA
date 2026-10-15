@@ -147,3 +147,26 @@ test('broker cancellation drains ownership and rejects stale generation callback
   assert.equal(broker.resolve({ ...request, runId: 'old', ok: true, result: {} }), false);
   broker.cancel();
 });
+
+for (const authentication of ['apiKey', 'none']) test(`Chat Completions supports ${authentication} without bearer leakage`, async t => {
+  const key = '!literal-$credential';
+  const provider = await providerFixture(t, entry => textReply(entry, 'completed'));
+  const config = configuration(provider.url, 'presentation', key);
+  config.model.authentication = authentication;
+  const { box, prompt } = await controllerFixture(t, config);
+  await prompt();
+  assert.equal((await box.wait(value => value.type === 'run_finished')).outcome, 'completed');
+  assert.equal(provider.requests[0].authorization, undefined);
+  assert.equal(provider.requests[0].headers['x-api-key'], authentication === 'apiKey' ? key : undefined);
+});
+
+test('reported token budget stops the SDK run and is not mislabeled completion', async t => {
+  const provider = await providerFixture(t, entry => textReply(entry, 'Budget boundary', 128));
+  const config = configuration(provider.url, 'presentation');
+  config.tokenBudget = 128;
+  const { box, prompt } = await controllerFixture(t, config);
+  await prompt();
+  assert.equal((await box.wait(value => value.type === 'run_finished')).outcome, 'budgetExceeded');
+  assert.equal(provider.requests.length, 1);
+  assert.equal(box.events.find(value => value.kind === 'usage').tokens.totalTokens, 128);
+});

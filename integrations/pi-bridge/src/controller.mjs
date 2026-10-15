@@ -50,7 +50,7 @@ export class WorkerController {
         requireValue(identifier(message.runId));
         requireValue(!this.#runIds.has(message.runId), 'duplicate_run');
         requireValue(typeof message.text === 'string' && message.text.length > 0 && message.text.length <= LIMITS.textChars);
-        const active = { id: message.runId, cancelled: false, timedOut: false, failed: false, settled: false, chars: 0, finalText: '', done: undefined };
+        const active = { id: message.runId, cancelled: false, timedOut: false, failed: false, settled: false, chars: 0, tokens: 0, budgetExceeded: false, finalText: '', done: undefined };
         this.#runIds.add(message.runId);
         this.#active = active;
         this.#broker.start(active.id);
@@ -92,7 +92,7 @@ export class WorkerController {
       this.#broker.cancel();
       if (this.#active === active) this.#active = undefined;
     }
-    const outcome = active.timedOut ? 'timeout' : active.cancelled ? 'cancelled' :
+    const outcome = active.budgetExceeded ? 'budgetExceeded' : active.timedOut ? 'timeout' : active.cancelled ? 'cancelled' :
       active.failed || !active.settled ? 'failed' : 'completed';
     this.#send({ type: 'run_finished', runId: active.id, outcome, text: active.finalText,
       ...(outcome === 'failed' ? { code: 'model_request_failed' } : {}) });
@@ -131,9 +131,14 @@ export class WorkerController {
         if (usage) {
           const tokens = {};
           for (const key of ['input', 'output', 'cacheRead', 'cacheWrite', 'totalTokens']) {
-            if (Number.isFinite(usage[key]) && usage[key] >= 0) tokens[key] = usage[key];
+            if (Number.isSafeInteger(usage[key]) && usage[key] >= 0 && usage[key] <= 2_000_000_000) tokens[key] = usage[key];
           }
           this.#send({ ...envelope, kind: 'usage', tokens });
+          active.tokens += tokens.totalTokens ?? ((tokens.input ?? 0) + (tokens.output ?? 0) + (tokens.cacheRead ?? 0) + (tokens.cacheWrite ?? 0));
+          if (active.tokens >= this.#configuration.tokenBudget) {
+            active.budgetExceeded = true;
+            void this.#cancel(active).catch(() => { active.failed = true; });
+          }
         }
         return;
       }

@@ -46,11 +46,11 @@ export async function providerFixture(t, reply) {
   return { requests, arrived, url: `http://127.0.0.1:${server.address().port}/v1` };
 }
 
-export function textReply(entry, text) {
+export function textReply(entry, text, totalTokens = 15) {
   entry.response.writeHead(200, { 'Content-Type': 'text/event-stream' });
   const chunk = delta => JSON.stringify({ id: 'fixture', object: 'chat.completion.chunk', model: 'fixture-model', choices: [{ index: 0, delta, finish_reason: null }] });
   entry.response.write(`data: ${chunk({ role: 'assistant', content: text })}\n\n`);
-  entry.response.write('data: ' + JSON.stringify({ id: 'fixture', object: 'chat.completion.chunk', model: 'fixture-model', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } }) + '\n\n');
+  entry.response.write('data: ' + JSON.stringify({ id: 'fixture', object: 'chat.completion.chunk', model: 'fixture-model', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: totalTokens - 5, completion_tokens: 5, total_tokens: totalTokens } }) + '\n\n');
   entry.response.end('data: [DONE]\n\n');
 }
 

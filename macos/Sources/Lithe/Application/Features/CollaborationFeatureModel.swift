@@ -29,6 +29,8 @@ final class CollaborationFeatureModel: ObservableObject {
     @Published private(set) var activityTitle = "正在处理"
     let presentation = CollaborationPresentationModel()
     let playback: CollaborationPlaybackModel
+    let developmentModelDiagnostics: CollaborationPiDiagnosticsModel
+    let presentationModelDiagnostics: CollaborationPiDiagnosticsModel
     private let playbackPersistence: CollaborationPlaybackPersistence
     private var playbackSaves: Task<Void, Never>?
     @Published private(set) var playbackStorageError: String?
@@ -69,6 +71,8 @@ final class CollaborationFeatureModel: ObservableObject {
         self.pi = pi
         self.verifier = verifier
         self.playback = CollaborationPlaybackModel(pi: pi)
+        self.developmentModelDiagnostics = CollaborationPiDiagnosticsModel(pi: pi)
+        self.presentationModelDiagnostics = CollaborationPiDiagnosticsModel(pi: pi)
         self.playbackPersistence = CollaborationPlaybackPersistence(editing: editing)
         self.operations = operations
         self.store = store
@@ -104,6 +108,7 @@ final class CollaborationFeatureModel: ObservableObject {
         verifications = []
         facts = []; archivedReceipts = []; recordingWorkspaceID = UUID().uuidString
         playback.reset(); playbackStorageError = nil
+        developmentModelDiagnostics.cancel(); presentationModelDiagnostics.cancel()
         answers = []; resultText = ""; error = nil; recoveryFailed = false
         hasPendingWrite = false
         presentation.reset(); questionText = ""; questionAnswer = ""
@@ -314,6 +319,8 @@ final class CollaborationFeatureModel: ObservableObject {
         cancel()
         await task?.value
         await playback.shutdown()
+        await developmentModelDiagnostics.shutdown()
+        await presentationModelDiagnostics.shutdown()
         await playbackSaves?.value
     }
 
@@ -402,7 +409,8 @@ final class CollaborationFeatureModel: ObservableObject {
         let reads = CollaborationReadTools(editing: editing, workspace: root, catalog: CollaborationPlanningContext.catalog(projectPaths))
         let request = PiAgentRequest(runID: operation.uuidString, role: .planning, workspace: root, provider: provider,
             system: Self.piPlannerInstructions, prompt: "需求：\(requirement)\n编辑器上下文：\n\(context)",
-            timeoutSeconds: max(30, min(modelSettings.developmentTimeoutSeconds, 3600)))
+            timeoutSeconds: max(30, min(modelSettings.developmentTimeoutSeconds, 3600)),
+            maximumOutputTokens: modelSettings.developmentOutputTokens, tokenBudget: modelSettings.developmentTokenBudget)
         task = Task { [weak self] in
             guard let self else { return }
             defer { if self.generation == operation { self.busy = false; self.task = nil } }
@@ -722,7 +730,8 @@ final class CollaborationFeatureModel: ObservableObject {
                     String(decoding: (try? JSONEncoder().encode(group.targets)) ?? Data(), as: UTF8.self) +
                     "\n" + (workflow?.prompts[group.id] ?? "") +
                     (allowVerification ? "\n宿主授权的验证 actionId：java-tests（Maven 项目的隔离副本）。" : "\n本会话没有自动验证工具授权；并发任务结束后由用户统一验证。"),
-                timeoutSeconds: max(30, min(modelSettings.developmentTimeoutSeconds, 3600)))
+                timeoutSeconds: max(30, min(modelSettings.developmentTimeoutSeconds, 3600)),
+                maximumOutputTokens: modelSettings.developmentOutputTokens, tokenBudget: modelSettings.developmentTokenBudget)
         }
         task = Task { [weak self] in
             guard let self else { return }
@@ -773,6 +782,9 @@ final class CollaborationFeatureModel: ObservableObject {
         if event.kind == "text_delta", let text = event.text {
             let preview = presentation.tasks[index]
             preview.text += text
+        } else if event.kind == "usage", let total = event.tokens?["totalTokens"], total.isFinite, total > 0, total <= 2_000_000_000 {
+            let preview = presentation.tasks[index]
+            preview.reportedTokens = (preview.reportedTokens ?? 0) + total
         } else if event.kind == "tool_started" {
             activityTitle = ["workspace_read": "Pi 正在读取代码", "workspace_search": "Pi 正在查找代码",
                              "workspace_apply": "Pi 正在提交修改", "workspace_verify": "Pi 正在请求验证"][event.name ?? ""] ?? "Pi 正在分析项目"
@@ -856,7 +868,9 @@ final class CollaborationFeatureModel: ObservableObject {
     func configurePlayback(settings: CommitMessageAISettings) {
         guard let workspaceURL else { return }
         playback.configure(workspace: workspaceURL, provider: modelSettings.provider(for: .presentation, in: settings),
-                           automaticEnabled: modelSettings.narrationEnabled)
+                           automaticEnabled: modelSettings.narrationEnabled,
+                           automaticLimit: modelSettings.automaticNarrationRequests,
+                           maximumOutputTokens: modelSettings.presentationOutputTokens, tokenBudget: modelSettings.presentationTokenBudget)
     }
 
     private static func jsonData(_ text: String) -> Data {

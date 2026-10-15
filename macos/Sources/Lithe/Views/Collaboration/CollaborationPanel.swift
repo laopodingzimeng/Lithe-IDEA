@@ -72,9 +72,10 @@ struct CollaborationPanel: View {
                 Spacer()
                 Button("服务商设置", action: openAISettings).buttonStyle(.plain).foregroundStyle(LitheTheme.accent)
             }
-            CollaborationRoleSelector(role: .development, feature: feature, settings: settings, diagnostics: diagnostics)
-            CollaborationRoleSelector(role: .presentation, feature: feature, settings: settings, diagnostics: presentationDiagnostics)
+            CollaborationRoleSelector(role: .development, feature: feature, settings: settings, diagnostics: diagnostics, piDiagnostics: feature.developmentModelDiagnostics)
+            CollaborationRoleSelector(role: .presentation, feature: feature, settings: settings, diagnostics: presentationDiagnostics, piDiagnostics: feature.presentationModelDiagnostics)
             LitheSettingsCheckbox(isOn: $feature.modelSettings.narrationEnabled, title: "自动准备讲解，开发独立运行")
+            CollaborationBudgetsView(feature: feature)
             Text("设置对下一次请求生效；共用账户可能共享服务商限额。")
                 .font(LitheTheme.uiFont(size: 10)).foregroundStyle(LitheTheme.secondaryText)
         }.padding(14).background(LitheTheme.sidebar)

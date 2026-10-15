@@ -26,11 +26,6 @@ struct MacPiAgentRunner: PiAgentRunning {
               endpoint.query == nil, endpoint.fragment == nil else { throw CollaborationRequestFailure.configuration }
         let key = credentials.readAPIKey(for: provider) ?? ""
         guard !key.isEmpty || !provider.requiresAPIKey else { throw CollaborationRequestFailure.configuration }
-        // Pi's public adapters currently bind these standard authentication types.
-        guard (provider.apiProtocol == .anthropicMessages && provider.authentication == .apiKey)
-            || (provider.apiProtocol != .anthropicMessages && provider.authentication == .bearer) else {
-            throw CollaborationRequestFailure.configuration
-        }
         let workspaceID = SHA256.hash(data: Data(request.workspace.standardizedFileURL.resolvingSymlinksInPath().path.utf8))
             .map { String(format: "%02x", $0) }.joined()
         let state = files.applicationSupportDirectory().appendingPathComponent("Lithe/Pi/Sessions/\(workspaceID)/\(UUID().uuidString)")
@@ -124,8 +119,11 @@ struct MacPiAgentRunner: PiAgentRunning {
         try send(["type": "initialize", "requestId": "initialize", "protocolVersion": 1,
                   "configuration": ["role": request.role.rawValue, "systemPrompt": request.system,
                     "runTimeoutMs": request.timeoutSeconds * 1000,
+                    "tokenBudget": max(128, min(request.tokenBudget, 2_000_000)),
                     "model": ["api": api, "id": request.provider.model, "baseUrl": base,
                               "apiKey": key.isEmpty ? "lithe-local-no-auth" : key,
+                              "authentication": key.isEmpty ? "none" : request.provider.authentication.rawValue,
+                              "maxTokens": max(128, min(request.maximumOutputTokens, 64_000)),
                               "allowInsecureHTTP": request.provider.allowsInsecureHTTP]]])
         var pending = Data(), text = "", sequence = 0, ready = false, completed = false
         for await chunk in chunks {
@@ -178,6 +176,7 @@ struct MacPiAgentRunner: PiAgentRunning {
                         completed = true
                     case "cancelled": throw CancellationError()
                     case "timeout": throw PiAgentFailure.timedOut
+                    case "budgetExceeded": throw PiAgentFailure.outputLimit
                     default: throw PiAgentFailure.modelFailed
                     }
                     try send(["type": "shutdown", "requestId": "shutdown"])

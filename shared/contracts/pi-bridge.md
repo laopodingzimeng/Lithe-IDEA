@@ -98,3 +98,27 @@ boundary evidence, not yet full desktop workflow or Windows verification.
 existing output limit). Earlier exploration commentary remains `text_delta`
 events but is not part of the final JSON plan. Older workers may omit `text`;
 the host's compatibility fallback is the collected stream.
+
+## Provider authentication and budgets
+
+`model.authentication` is `bearer`, `apiKey`, or `none` (missing retains the
+protocol's standard default). All three API adapters support all three modes.
+Pi's public native-provider auth hook supplies literal credentials; provider
+configuration never evaluates a key as an environment expression or shell command.
+`none` omits both credential headers, and selecting one mode removes the other
+header. Unknown prices remain unknown; SDK zero-cost metadata is never a cost estimate.
+
+`model.maxTokens` bounds an individual response (128–64,000). `tokenBudget`
+bounds cumulative provider-reported usage per run (default 200,000; 128–2,000,000).
+The worker checks cumulative tokens after each response and returns outcome
+`budgetExceeded` when reached. Usage is not guaranteed to be present, nor can
+this post-response check act as a strict billing ceiling. Time, output-size and
+tool-count budgets remain independent. The host labels usage as model-reported.
+Parallel sessions each have their own pinned budgets; narration has a separate
+request count, token and output budget. Explicit narration and user questions
+remain available after the automatic request allowance is exhausted.
+
+The native capability test uses the same SDK/model/auth path with a generated
+nonce and in-memory read/apply tool replies. Passing development requires actual
+read and exact edit tool calls; presentation requires the expected JSON reply.
+This is labeled a tool-protocol test, never a project edit or successful build.

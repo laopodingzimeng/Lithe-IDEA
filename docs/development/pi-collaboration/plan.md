@@ -95,7 +95,7 @@
 ### [P4] 独立供应商设置与诊断
 
 - **内容：** 角色分别绑定供应商和模型；模型发现；各角色能力测试；预算
-- **进度：** todo
+- **进度：** doing
 - **结束验收标准：** 不同端点和凭据正确路由；配置修改对活动操作隔离
 - **交付标准：** 设置模型、原生界面、诊断回归
 - **会用到的 MCP：** none
@@ -103,7 +103,7 @@
 - **验收 Skill：** develop-lithe; write-stable-tests; agent-notes
 - **需提交文件：** integrations/; macos/; windows/; rust/; shared/; scripts/; docs/; .agents/notes/; .github/
 - **排除文件：** .artifacts/; node_modules/; target/; .build/; credentials
-- **备注：** 用户已授权全部功能，按已确认方案执行
+- **备注：** 三种协议各自支持 Bearer/API Key/无认证，22 项真实 SDK 测试通过；原生能力诊断、独立预算和用量已编码，等待 CI 验证。
 
 ---
 
