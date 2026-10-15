@@ -32,6 +32,12 @@ pub struct CoreRequest {
 /// Variants are grouped by domain, but their serialized compatibility names
 /// live only in [`CoreCommand::parse`] so every host uses one mapping.
 pub enum CoreCommand {
+    /// Advances a host-owned collaboration plan (`collaboration.transition`).
+    CollaborationTransition,
+    /// Validates scoped edits without writing files (`collaboration.prepare`).
+    CollaborationPrepare,
+    /// Prepares a guarded inverse of a trusted receipt (`collaboration.reverse`).
+    CollaborationReverse,
     /// Controls the native IDE capability broker (`ideHost.control`).
     IdeHostControl,
     /// Reports the Core and protocol versions (`core.ping`).
@@ -358,6 +364,9 @@ impl CoreCommand {
         match value {
             "core.ping" => Some(Self::Ping),
             "ideHost.control" => Some(Self::IdeHostControl),
+            "collaboration.transition" => Some(Self::CollaborationTransition),
+            "collaboration.prepare" => Some(Self::CollaborationPrepare),
+            "collaboration.reverse" => Some(Self::CollaborationReverse),
             "agent.status" => Some(Self::AgentStatus),
             "agent.install" => Some(Self::AgentInstall),
             "agent.uninstall" => Some(Self::AgentUninstall),

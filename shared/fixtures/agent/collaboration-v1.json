@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "request": {
+    "id": "collaboration-fixture",
+    "command": "collaboration.transition",
+    "payload": {
+      "plan": {
+        "id": "order-feature",
+        "version": 1,
+        "requirement": "Prepare the order mapper while the developer owns business rules.",
+        "steps": [
+          {
+            "id": "mapper",
+            "title": "Implement the existing mapper method",
+            "owner": "ai",
+            "targets": [
+              { "kind": "javaMethod", "path": "src/Order.java", "typeName": "Order", "signature": "String map(int n)" }
+            ],
+            "acceptance": ["Only the mapper body changes."],
+            "questions": ["Which null handling rule should apply?"],
+            "decisions": []
+          }
+        ],
+        "currentStep": 0,
+        "phase": "draft",
+        "paused": false
+      },
+      "expectedVersion": 1,
+      "action": { "kind": "confirm" }
+    }
+  },
+  "expected": { "version": 2, "phase": "ready", "currentStep": 0, "paused": false }
+}

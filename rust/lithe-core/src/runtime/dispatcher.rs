@@ -136,6 +136,15 @@ fn execute(request: &str) -> CoreResponse {
                 "coreVersion": env!("CARGO_PKG_VERSION")
             }),
         ),
+        CoreCommand::CollaborationTransition => {
+            plugin_response(id, parsed.payload, crate::collaboration::transition)
+        }
+        CoreCommand::CollaborationPrepare => {
+            plugin_response(id, parsed.payload, crate::collaboration::prepare)
+        }
+        CoreCommand::CollaborationReverse => {
+            plugin_response(id, parsed.payload, crate::collaboration::reverse)
+        }
         CoreCommand::AgentStatus => agent_response(id, parsed.payload, crate::agent::status),
         CoreCommand::AgentParseProviderConfiguration => {
             match crate::ai::parse_provider_configuration(parsed.payload) {
